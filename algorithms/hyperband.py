@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from math import floor, ceil, log, inf
+import math
 import numpy as np
 
 # Based on pseudocode from https://homes.cs.washington.edu/~jamieson/hyperband.html
@@ -11,15 +11,15 @@ class Hyperband:
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta # defines downsampling rate (default=3)
         
-        self.s_max = floor(log(max_iter, eta)) + 1  # number of unique executions of Successive Halving (minus one)
+        self.s_max = math.floor(math.log(max_iter, eta)) + 1  # number of unique executions of Successive Halving (minus one)
         self.B = (self.s_max+1)*max_iter  # total number of iterations (without reuse) per execution of Succesive Halving (n,r)
 
     def tune(self):
         best_hyperparameters = {}
-        best_loss = inf
+        best_loss = math.inf
         
         for s in tqdm(reversed(range(self.s_max+1)), total=self.s_max+1):            
-            n = int(ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s)) # initial number of configurations
+            n = int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s)) # initial number of configurations
             r = self.max_iter * self.eta**(-s) # initial number of iterations to run configurations for
             
             T = [self.model.sample_hyperparameters() for i in range(n)]
