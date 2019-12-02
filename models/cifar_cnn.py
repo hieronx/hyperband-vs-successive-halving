@@ -13,8 +13,9 @@ import torchvision.transforms as transforms
 
 import math
 import random
+from tqdm import tqdm
 
-from . import Model, efficientnet
+from . import Model, resnet
 
 class CifarCnn(Model):
 
@@ -34,39 +35,41 @@ class CifarCnn(Model):
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
 
-        trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-        self.train_loader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=0)
+        self.bs = 32
 
-        testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-        self.test_loader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=0)
+        self.train = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+        self.train_loader = torch.utils.data.DataLoader(self.train, batch_size=self.bs, shuffle=True, num_workers=0)
+
+        self.test = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+        self.test_loader = torch.utils.data.DataLoader(self.test, batch_size=self.bs, shuffle=False, num_workers=0)
 
     def sample_hyperparameters(self):
         return { 'learning-rate': round(random.uniform(0, 1), 2) }
 
     def run(self, num_iters, hyperparameters):
-        net = efficientnet.EfficientNetB0()
+        net = resnet.ResNet18()
         net = net.to(self.device)
 
         if self.device == 'cuda':
             net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
 
-        ce_loss = nn.CrossEntropyLoss()
         optimizer = optim.SGD(net.parameters(), lr=hyperparameters['learning-rate'], momentum=0.9, weight_decay=5e-4)
 
         best_acc = -math.inf
+        num_train_batches, num_test_batches = math.ceil(len(self.train) / self.bs), math.ceil(len(self.test) / self.bs)
 
         for epoch in range(math.floor(num_iters)):
-            print('\nEpoch: %d' % epoch)
+            print('\nEpoch %d of %d' % ((epoch+1), (num_iters)))
 
             # Train
             net.train()
-            for batch_idx, (inputs, targets) in enumerate(self.train_loader):
+            for batch_idx, (inputs, targets) in tqdm(enumerate(self.train_loader), total=num_train_batches):
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 optimizer.zero_grad()
 
                 pred = net(inputs)
-                loss = ce_loss(pred, targets)
+                loss = F.nll_loss(pred, targets)
                 loss.backward()
 
                 optimizer.step()
@@ -77,11 +80,11 @@ class CifarCnn(Model):
             correct = 0
             total = 0
             with torch.no_grad():
-                for batch_idx, (inputs, targets) in enumerate(self.test_loader):
+                for batch_idx, (inputs, targets) in tqdm(enumerate(self.test_loader), total=num_test_batches):
                     inputs, targets = inputs.to(self.device), targets.to(self.device)
 
                     pred = net(inputs)
-                    loss = ce_loss(pred, targets)
+                    loss = F.nll_loss(pred, targets)
 
                     test_loss += loss.item()
                     _, predicted = outputs.max(1)
