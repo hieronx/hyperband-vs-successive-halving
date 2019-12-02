@@ -1,7 +1,7 @@
 from algorithms.hyperband import Hyperband
-from models.cifar_cnn import CifarCnn
+from models.mnist_cnn import FashionMNISTCNN
 
-model = CifarCnn()
+model = FashionMNISTCNN()
 hb = Hyperband(model, 10, 3)
 
 hb.tune()
