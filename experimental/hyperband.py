@@ -74,8 +74,8 @@ class Hyperband:
 
         if self.ds_name == 'CIFAR10':
             transform_train = transforms.Compose([
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
+            #    transforms.RandomCrop(32, padding=4),
+            #    transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ])
@@ -88,8 +88,8 @@ class Hyperband:
 
         elif self.ds_name == 'FashionMNIST':
             transform_train = transforms.Compose([
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
+            #    transforms.RandomCrop(32, padding=4),
+            #    transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914,), (0.2023,)),
             ])
@@ -108,7 +108,7 @@ class Hyperband:
     def train(self, num_iters, hyperparameters, conf):
 
         # Data
-        print('==> Preparing data..')
+        print('\n==> Preparing data..')
         trainloader, testloader = self.prepare_data()
         print('==> Done preparing data..')
         # Model
@@ -136,11 +136,12 @@ class Hyperband:
             train_loss = 0
             correct = 0
             total = 0
+            endloss = 0
 
             #progress_bar(0, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
             #        % (0, 0, 0, 0))
-
-            t = tqdm(enumerate(trainloader),total=len(trainloader), ncols=130)
+            
+            t = tqdm(enumerate(trainloader),total=len(trainloader), ncols=130, position=0)
             for batch_idx, (inputs, targets) in t:
                 inputs, targets = inputs.to(device), targets.to(device)
                 optimizer.zero_grad()
@@ -156,56 +157,74 @@ class Hyperband:
                 
                 t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (train_loss/(batch_idx+1), (100.*correct/total), correct, total))
 
+                endloss = train_loss/(batch_idx+1)
                 #progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                 #    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-            
-            if train_loss < loss:
-                loss =train_loss
 
             # Save checkpoint.
-            acc = 100.*correct/total
-            if acc > best_acc:
-                print('Saving..')
-                state = {
-                'net': net.state_dict(),
-                'acc': acc,
-                'loss': train_loss,
-                'epoch': epoch,
-                'num_iters': num_iters
-                }
-                if not os.path.isdir('checkpoint'):
-                    os.mkdir('checkpoint')
-                
-                torch.save(state, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
-        
+            #acc = 100.*correct/total
+            #if acc > best_acc:
+            print('Saving..')
+            state = {
+            'net': net.state_dict(),
+            'acc': 100.*correct/total,
+            'loss': endloss,
+            'epoch': epoch,
+            'num_iters': num_iters,
+            'momentum': momentum,
+            'weight_decay': weight_decay,
+            'conf': conf
+            }
+            if not os.path.isdir('checkpoint'):
+                os.mkdir('checkpoint')
+            
+            torch.save(state, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
+            
+        #self.test(self, testloader=testloader, checkpoint='./checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
+        self.test(testloader, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
+
         return loss
+     
+    def test(self, testloader, checkpoint):
+        # Load checkpoint.
+        print('=====> Testing from checkpoint..')
+        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+        checkpoint = torch.load(checkpoint)
 
-'''           
-        def test(self):
-            if args.resume:
-            # Load checkpoint.
-                print('==> Resuming from checkpoint..')
-                assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-                checkpoint = torch.load('./checkpoint/ckpt.pth')
-                net.load_state_dict(checkpoint['net'])
-                best_acc = checkpoint['acc']
-                start_epoch = checkpoint['epoch']
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        net = self.model
+        net = net.to(device)
 
-            net.eval()
-            test_loss = 0
-            correct = 0
-            total = 0
-            with torch.no_grad():
-            for batch_idx, (inputs, targets) in enumerate(testloader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
+        net.load_state_dict(checkpoint['net'])
+        print('accuracy %f%%, loss %f, momentum %f, weight_decay %f' % (checkpoint['acc'], checkpoint['loss'],checkpoint['momentum'], checkpoint['weight_decay']))
 
-            test_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
+        if device == 'cuda:0':
+            net = torch.nn.DataParallel(net)
+            cudnn.benchmark = True
 
-            progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-'''
+        criterion = nn.CrossEntropyLoss()
+        momentum = checkpoint['momentum']
+        weight_decay  = checkpoint['weight_decay']
+        optimizer = optim.SGD(net.parameters(), lr=0.05, momentum=momentum , weight_decay=weight_decay)
+
+        #net.eval()
+        test_loss = 0
+        correct = 0
+        total = 0
+        t = tqdm(enumerate(testloader),total=len(testloader), ncols=130, position=0)
+
+        with torch.no_grad():
+            for batch_idx, (inputs, targets) in t:
+                inputs, targets = inputs.to(device), targets.to(device)
+                outputs = net(inputs)
+                loss = criterion(outputs, targets)
+
+                test_loss += loss.item()
+                _, predicted = outputs.max(1)
+                total += targets.size(0)
+                correct += predicted.eq(targets).sum().item()
+
+                t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (test_loss/(batch_idx+1), (100.*correct/total), correct, total))
+
+                #progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
+                #    % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
