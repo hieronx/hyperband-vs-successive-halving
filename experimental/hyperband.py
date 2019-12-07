@@ -16,17 +16,18 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 import os
 
-from utils import progress_bar
+#from utils import progress_bar
 # Based on pseudocode from https://homes.cs.washington.edu/~jamieson/hyperband.html
 
 class Hyperband:
 
-    def __init__(self, model, param, ds_name, max_iter = 81, eta = 3, seed = 1234):
+    def __init__(self, model, param, ds_name, hyperband=True, max_iter = 81, eta = 3, seed = 1234):
         self.model = model
         self.param = param
         self.ds_name = ds_name
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
+        self.hyperband = hyperband
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta # defines downsampling rate (default=3)
         self.seed = seed
@@ -51,18 +52,39 @@ class Hyperband:
         best_loss = math.inf
         cs = self.create_hyperparameterspace()
 
-        for s in tqdm(reversed(range(self.s_max+1)), total=self.s_max+1):            
-            n = int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s)) # initial number of configurations
-            r = self.max_iter * self.eta**(-s) # initial number of iterations to run configurations for
+        if self.hyperband:
+            for s in tqdm(reversed(range(self.s_max+1)), total=self.s_max+1):            
+                n = int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s)) # initial number of configurations
+                r = self.max_iter * self.eta**(-s) # initial number of iterations to run configurations for
 
+                T = [cs.sample_configuration() for i in range(n)]
+
+                for i in range(s+1):
+                    print(n)
+                    n_i = n * self.eta**(-i)
+                    r_i = r * self.eta**(i)
+                    print(n_i, r_i)
+                    
+                    val_losses = [self.train(num_iters=r_i, hyperparameters=t, conf='b_'+str(s)+'_ni_'+str(i)) for t in T]
+                    best_ix = np.argsort(val_losses)[0:int(n_i / self.eta)]
+                    
+                    if len(best_ix) > 0 and val_losses[best_ix[0]] < best_loss:
+                        best_loss = val_losses[best_ix[0]]
+                        best_hyperparameters = T[best_ix[0]]
+                    
+                    T = [T[i] for i in best_ix]
+        else:
+            n = int(math.ceil(int(self.max_iter) * 2)) # initial number of configurations
+            r = self.max_iter # initial number of iterations to run configurations for
+            
             T = [cs.sample_configuration() for i in range(n)]
-
-            for i in range(s+1):
-                n_i = n * self.eta**(-i)
-                r_i = r * self.eta**(i)
+            
+            for i in range(4):
+                n_i = n * 2**(-i)
+                r_i = r * 2**(i)
                 
-                val_losses = [self.train(num_iters=r_i, hyperparameters=t, conf='b_'+str(s)+'_ni_'+str(i)) for t in T]
-                best_ix = np.argsort(val_losses)[0:int(n_i / self.eta)]
+                val_losses = [self.train(num_iters=r_i, hyperparameters=t, conf='successive'+str(i)) for t in T]
+                best_ix = np.argsort(val_losses)[0:int(n_i / 2)]
                 
                 if len(best_ix) > 0 and val_losses[best_ix[0]] < best_loss:
                     best_loss = val_losses[best_ix[0]]
@@ -73,37 +95,52 @@ class Hyperband:
         return (best_loss, best_hyperparameters)
 
     def prepare_test_data(self):
-        pass
+        if self.ds_name == 'CIFAR10':
+            transform_test = self.data_transforms(False)
+            testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform_test)
+
+        elif self.ds_name == 'FashionMNIST':
+            transform_test = self.data_transforms(False)
+            testset = torchvision.datasets.FashionMNIST(root='../data', train=False, download=True, transform=transform_test)
+        
+        return transform_test
+
+    def data_transforms(self, train):
+        if self.ds_name == 'CIFAR10':
+            norm = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        elif self.ds_name == 'FashionMNIST':
+            norm = transforms.Normalize((0.4914, ), (0.2023,))
+
+        if train:
+            transform = transforms.Compose([
+            #transforms.RandomCrop(32, padding=4),
+            #transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            norm,
+            ])
+        else:
+            transform = transforms.Compose([
+            #transforms.RandomCrop(32, padding=4),
+            #transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            norm,
+            ])
+
+        return transform
 
     def prepare_train_data(self):
         shuffle = False
         valid_size=0.1
 
         if self.ds_name == 'CIFAR10':
-            transform_train = transforms.Compose([
-            #    transforms.RandomCrop(32, padding=4),
-            #    transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ])
-            transform_val = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            ])
+            transform_train =  self.data_transforms(True)
+            transform_val = self.data_transforms(False)
             trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
             valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_val)
 
         elif self.ds_name == 'FashionMNIST':
-            transform_train = transforms.Compose([
-            #    transforms.RandomCrop(32, padding=4),
-            #    transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914,), (0.2023,)),
-            ])
-            transform_val = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, ), (0.2023,)),
-            ])
+            transform_train =  self.data_transforms(True)
+            transform_val = self.data_transforms(False)
             trainset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=transform_train)
             valset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=transform_val)
 
@@ -167,7 +204,7 @@ class Hyperband:
         net = self.model
         net = net.to(self.device)
 
-        if device == 'cuda:0':
+        if self.device == 'cuda:0':
             net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
 
@@ -242,7 +279,7 @@ class Hyperband:
         net.load_state_dict(checkpoint['net'])
         print('accuracy %f%%, loss %f, momentum %f, weight_decay %f' % (checkpoint['acc'], checkpoint['loss'],checkpoint['momentum'], checkpoint['weight_decay']))
 
-        if device == 'cuda:0':
+        if self.device == 'cuda:0':
             net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
 

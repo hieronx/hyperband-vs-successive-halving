@@ -20,5 +20,5 @@ if __name__ == '__main__':
     #hb.tune()
 
     #hb = Hyperband(model=EfficientNetB0(num_classes=10, color=False), param=params, ds_name='FashionMNIST', max_iter = 81, eta = 3)
-    hb = Hyperband(model=SimpleCNN(num_classes=10, color=False), param=params, ds_name='FashionMNIST', max_iter = 81, eta = 3)
+    hb = Hyperband(model=SimpleCNN(num_classes=10, color=False,),hyperband=True, param=params, ds_name='FashionMNIST', max_iter = 81, eta = 3)
     hb.tune()

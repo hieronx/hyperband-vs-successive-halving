@@ -17,7 +17,7 @@ class Hyperband:
     def tune(self):
         best_hyperparameters = {}
         best_loss = math.inf
-        
+
         for s in tqdm(reversed(range(self.s_max+1)), total=self.s_max+1):            
             n = int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s)) # initial number of configurations
             r = self.max_iter * self.eta**(-s) # initial number of iterations to run configurations for
