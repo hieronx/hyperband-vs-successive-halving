@@ -12,6 +12,7 @@ import torch.backends.cudnn as cudnn
 
 import torchvision
 import torchvision.transforms as transforms
+from torch.utils.data.sampler import SubsetRandomSampler
 
 import os
 
@@ -24,6 +25,7 @@ class Hyperband:
         self.model = model
         self.param = param
         self.ds_name = ds_name
+        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta # defines downsampling rate (default=3)
@@ -70,7 +72,12 @@ class Hyperband:
             
         return (best_loss, best_hyperparameters)
 
-    def prepare_data(self):
+    def prepare_test_data(self):
+        pass
+
+    def prepare_train_data(self):
+        shuffle = False
+        valid_size=0.1
 
         if self.ds_name == 'CIFAR10':
             transform_train = transforms.Compose([
@@ -79,12 +86,12 @@ class Hyperband:
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ])
-            transform_test = transforms.Compose([
+            transform_val = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ])
             trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
-            testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform_test)
+            valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_val)
 
         elif self.ds_name == 'FashionMNIST':
             transform_train = transforms.Compose([
@@ -93,29 +100,72 @@ class Hyperband:
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914,), (0.2023,)),
             ])
-            transform_test = transforms.Compose([
+            transform_val = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914, ), (0.2023,)),
             ])
             trainset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=transform_train)
-            testset = torchvision.datasets.FashionMNIST(root='../data', train=False, download=True, transform=transform_test)
+            valset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=transform_val)
 
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.bs, shuffle=True, num_workers=2)
-        testloader = torch.utils.data.DataLoader(testset, batch_size=self.bs, shuffle=False, num_workers=2)
+        num_train = len(trainset)
+        indices = list(range(num_train))
+        split = int(np.floor(valid_size * num_train))
 
-        return trainloader, testloader
+        if shuffle:
+            np.random.seed(self.seed)
+            np.random.shuffle(indices)
+
+        train_idx, valid_idx = indices[split:], indices[:split]
+        train_sampler = SubsetRandomSampler(train_idx)
+        valid_sampler = SubsetRandomSampler(valid_idx)
+
+        trainloader = torch.utils.data.DataLoader(trainset, sampler=train_sampler, batch_size=self.bs, shuffle=False, num_workers=1)
+        valloader = torch.utils.data.DataLoader(valset, sampler=valid_sampler, batch_size=self.bs, shuffle=False, num_workers=1)
+
+        return trainloader, valloader
+
+    def validate(self, net, valloader):
+
+        net = self.model
+        net = net.to(self.device)
+
+        if device == 'cuda:0':
+            net = torch.nn.DataParallel(net)
+            cudnn.benchmark = True
+
+        criterion = nn.CrossEntropyLoss()
+
+        net.eval()
+        val_loss = 0
+        correct = 0
+        total = 0
+
+        t = tqdm(enumerate(valloader),total=len(valloader), ncols=130, position=0, bar_format="{desc:<45}{percentage:3.0f}%|{bar}{r_bar}")
+
+        with torch.no_grad():
+            for batch_idx, (inputs, targets) in t:
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                outputs = net(inputs)
+                loss = criterion(outputs, targets)
+
+                val_loss += loss.item()
+                _, predicted = outputs.max(1)
+                total += targets.size(0)
+                correct += predicted.eq(targets).sum().item()
+
+                t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (val_loss/(batch_idx+1), (100.*correct/total), correct, total))
+    
+        return (val_loss/(batch_idx+1)), (100.*correct/total)
+
 
     def train(self, num_iters, hyperparameters, conf):
 
         # Data
-        print('\n==> Preparing data..')
-        trainloader, testloader = self.prepare_data()
-        print('==> Done preparing data..')
+        trainloader, valloader = self.prepare_train_data()
+
         # Model
-        print('===> Building model..')
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         net = self.model
-        net = net.to(device)
+        net = net.to(self.device)
 
         if device == 'cuda:0':
             net = torch.nn.DataParallel(net)
@@ -126,7 +176,6 @@ class Hyperband:
         weight_decay  = hyperparameters.get('weight_decay')
         optimizer = optim.SGD(net.parameters(), lr=0.05, momentum=momentum , weight_decay=weight_decay)
 
-        print('====> Done building model..')
         start_epoch = 0
         loss = math.inf
 
@@ -137,13 +186,10 @@ class Hyperband:
             correct = 0
             total = 0
             endloss = 0
-
-            #progress_bar(0, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            #        % (0, 0, 0, 0))
             
-            t = tqdm(enumerate(trainloader),total=len(trainloader), ncols=130, position=0)
+            t = tqdm(enumerate(trainloader),total=len(trainloader), ncols=130, position=0, bar_format="{desc:<45}{percentage:3.0f}%|{bar}{r_bar}")
             for batch_idx, (inputs, targets) in t:
-                inputs, targets = inputs.to(device), targets.to(device)
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
                 optimizer.zero_grad()
                 outputs = net(inputs)
                 loss = criterion(outputs, targets)
@@ -158,17 +204,17 @@ class Hyperband:
                 t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (train_loss/(batch_idx+1), (100.*correct/total), correct, total))
 
                 endloss = train_loss/(batch_idx+1)
-                #progress_bar(batch_idx, len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                #    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
+            val_loss, val_acc= self.validate(net, valloader)
+            print('val_loss: %0.3f, val_accuracy: %0.3f' % (val_loss, val_acc))
 
             # Save checkpoint.
-            #acc = 100.*correct/total
-            #if acc > best_acc:
             print('Saving..')
             state = {
             'net': net.state_dict(),
             'acc': 100.*correct/total,
-            'loss': endloss,
+            'loss': val_loss,
+            'train_loss': endloss, 
             'epoch': epoch,
             'num_iters': num_iters,
             'momentum': momentum,
@@ -181,9 +227,8 @@ class Hyperband:
             torch.save(state, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
             
         #self.test(self, testloader=testloader, checkpoint='./checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
-        self.test(testloader, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
-
-        return loss
+        #self.test(testloader, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
+        return val_loss
      
     def test(self, testloader, checkpoint):
         # Load checkpoint.
@@ -191,9 +236,8 @@ class Hyperband:
         assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
         checkpoint = torch.load(checkpoint)
 
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         net = self.model
-        net = net.to(device)
+        net = net.to(self.device)
 
         net.load_state_dict(checkpoint['net'])
         print('accuracy %f%%, loss %f, momentum %f, weight_decay %f' % (checkpoint['acc'], checkpoint['loss'],checkpoint['momentum'], checkpoint['weight_decay']))
@@ -205,17 +249,16 @@ class Hyperband:
         criterion = nn.CrossEntropyLoss()
         momentum = checkpoint['momentum']
         weight_decay  = checkpoint['weight_decay']
-        optimizer = optim.SGD(net.parameters(), lr=0.05, momentum=momentum , weight_decay=weight_decay)
 
-        #net.eval()
+        net.eval()
         test_loss = 0
         correct = 0
         total = 0
-        t = tqdm(enumerate(testloader),total=len(testloader), ncols=130, position=0)
+        t = tqdm(enumerate(testloader),total=len(testloader), ncols=130, position=0, bar_format="{desc:<45}{percentage:3.0f}%|{bar}{r_bar}")
 
         with torch.no_grad():
             for batch_idx, (inputs, targets) in t:
-                inputs, targets = inputs.to(device), targets.to(device)
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
                 outputs = net(inputs)
                 loss = criterion(outputs, targets)
 
@@ -226,5 +269,3 @@ class Hyperband:
 
                 t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (test_loss/(batch_idx+1), (100.*correct/total), correct, total))
 
-                #progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                #    % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
