@@ -21,7 +21,7 @@ import os
 
 class Hyperband:
 
-    def __init__(self, model, param, ds_name, hyperband=True, max_iter = 81, eta = 3, seed = 1234):
+    def __init__(self, model, param, ds_name, hyperband=True, max_iter = 81, eta = 3, seed = 1234, bs=128):
         self.model = model
         self.param = param
         self.ds_name = ds_name
@@ -36,8 +36,7 @@ class Hyperband:
         self.s_max = int(logeta(max_iter))
 
         self.B = (self.s_max+1)*max_iter  # total number of iterations (without reuse) per execution of Succesive Halving (n,r)
-
-        self.bs = 128
+        self.bs = bs
     
     def create_hyperparameterspace(self):
         cs = CS.ConfigurationSpace(seed=self.seed)
@@ -60,10 +59,8 @@ class Hyperband:
                 T = [cs.sample_configuration() for i in range(n)]
 
                 for i in range(s+1):
-                    print(n)
                     n_i = n * self.eta**(-i)
                     r_i = r * self.eta**(i)
-                    print(n_i, r_i)
                     
                     val_losses = [self.train(num_iters=r_i, hyperparameters=t, conf='b_'+str(s)+'_ni_'+str(i)) for t in T]
                     best_ix = np.argsort(val_losses)[0:int(n_i / self.eta)]
@@ -109,11 +106,11 @@ class Hyperband:
         if self.ds_name == 'CIFAR10':
             norm = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
         elif self.ds_name == 'FashionMNIST':
-            norm = transforms.Normalize((0.4914, ), (0.2023,))
+            norm = transforms.Normalize((0.456,), (0.224,))
 
         if train:
             transform = transforms.Compose([
-            #transforms.RandomCrop(32, padding=4),
+            transforms.RandomCrop(28, padding=4),
             #transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             norm,
