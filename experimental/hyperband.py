@@ -21,13 +21,14 @@ import os
 
 class Hyperband:
 
-    def __init__(self, model, param, ds_name, hyperband=True, max_iter = 81, eta = 3, seed = 1234, bs=128):
+    def __init__(self, model, param, ds_name, hyperband=True, lr_schedule='static',max_iter=81, eta = 3, seed = 1234, bs=128):
         self.model = model
         self.param = param
         self.ds_name = ds_name
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
         self.hyperband = hyperband
+        self.lr_schedule = lr_schedule
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta # defines downsampling rate (default=3)
         self.seed = seed
@@ -44,6 +45,7 @@ class Hyperband:
         for configs in self.param:
             hp = CSH.UniformFloatHyperparameter(name=configs[0], lower=configs[1], upper=configs[2], log=configs[3])
             cs.add_hyperparameter(hp)
+
         return cs
         
     def tune(self):
@@ -52,7 +54,7 @@ class Hyperband:
         cs = self.create_hyperparameterspace()
 
         if self.hyperband:
-            for s in tqdm(reversed(range(self.s_max+1)), total=self.s_max+1):            
+            for s in reversed(range(self.s_max+1)):            
                 n = int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s)) # initial number of configurations
                 r = self.max_iter * self.eta**(-s) # initial number of iterations to run configurations for
 
@@ -60,7 +62,7 @@ class Hyperband:
 
                 for i in range(s+1):
                     n_i = n * self.eta**(-i)
-                    r_i = r * self.eta**(i)
+                    r_i = r * self.eta ** (i)
                     
                     val_losses = [self.train(num_iters=r_i, hyperparameters=t, conf='b_'+str(s)+'_ni_'+str(i)) for t in T]
                     best_ix = np.argsort(val_losses)[0:int(n_i / self.eta)]
@@ -92,14 +94,9 @@ class Hyperband:
         return (best_loss, best_hyperparameters)
 
     def prepare_test_data(self):
-        if self.ds_name == 'CIFAR10':
-            transform_test = self.data_transforms(False)
-            testset = torchvision.datasets.CIFAR10(root='../data', train=False, download=True, transform=transform_test)
+        transform_test = self.data_transforms(False)
+        testset = getattr(torchvision.datasets, self.ds_name)(root='../data', train=False, download=True, transform=transform_test)
 
-        elif self.ds_name == 'FashionMNIST':
-            transform_test = self.data_transforms(False)
-            testset = torchvision.datasets.FashionMNIST(root='../data', train=False, download=True, transform=transform_test)
-        
         return transform_test
 
     def data_transforms(self, train):
@@ -108,20 +105,10 @@ class Hyperband:
         elif self.ds_name == 'FashionMNIST':
             norm = transforms.Normalize((0.456,), (0.224,))
 
-        if train:
-            transform = transforms.Compose([
-            transforms.RandomCrop(28, padding=4),
-            #transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            norm,
-            ])
-        else:
-            transform = transforms.Compose([
-            #transforms.RandomCrop(32, padding=4),
-            #transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            norm,
-            ])
+        transform = transforms.Compose([
+        transforms.RandomCrop(28, padding=4),
+        #transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(), norm,])
 
         return transform
 
@@ -129,17 +116,11 @@ class Hyperband:
         shuffle = False
         valid_size=0.1
 
-        if self.ds_name == 'CIFAR10':
-            transform_train =  self.data_transforms(True)
-            transform_val = self.data_transforms(False)
-            trainset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_train)
-            valset = torchvision.datasets.CIFAR10(root='../data', train=True, download=True, transform=transform_val)
+        transform_train =  self.data_transforms(True)
+        transform_val = self.data_transforms(False)
 
-        elif self.ds_name == 'FashionMNIST':
-            transform_train =  self.data_transforms(True)
-            transform_val = self.data_transforms(False)
-            trainset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=transform_train)
-            valset = torchvision.datasets.FashionMNIST(root='../data', train=True, download=True, transform=transform_val)
+        trainset = getattr(torchvision.datasets, self.ds_name)(root='../data', train=True, download=True, transform=transform_train)
+        valset = getattr(torchvision.datasets, self.ds_name)(root='../data', train=True, download=True, transform=transform_val)
 
         num_train = len(trainset)
         indices = list(range(num_train))
@@ -163,7 +144,7 @@ class Hyperband:
         net = self.model
         net = net.to(self.device)
 
-        if device == 'cuda:0':
+        if self.device == 'cuda:0':
             net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
 
@@ -174,7 +155,7 @@ class Hyperband:
         correct = 0
         total = 0
 
-        t = tqdm(enumerate(valloader),total=len(valloader), ncols=130, position=0, bar_format="{desc:<45}{percentage:3.0f}%|{bar}{r_bar}")
+        t = tqdm(enumerate(valloader), total=len(valloader), ncols=130, position=0, bar_format="{desc:<50}{percentage:3.0f}%|{bar}{r_bar}")
 
         with torch.no_grad():
             for batch_idx, (inputs, targets) in t:
@@ -187,13 +168,11 @@ class Hyperband:
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()
 
-                t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (val_loss/(batch_idx+1), (100.*correct/total), correct, total))
+                t.set_description('validate.. | loss=%0.3f | acc=%0.3f%% | %g/%g |' % (val_loss/(batch_idx+1), (100.*correct/total), correct, total))
     
         return (val_loss/(batch_idx+1)), (100.*correct/total)
 
-
-    def train(self, num_iters, hyperparameters, conf):
-
+    def train(self,num_iters, hyperparameters, conf):
         # Data
         trainloader, valloader = self.prepare_train_data()
 
@@ -208,7 +187,17 @@ class Hyperband:
         criterion = nn.CrossEntropyLoss()
         momentum = hyperparameters.get('momentum')
         weight_decay  = hyperparameters.get('weight_decay')
-        optimizer = optim.SGD(net.parameters(), lr=0.05, momentum=momentum , weight_decay=weight_decay)
+   
+        optimizer = optim.SGD(net.parameters(), lr=0.05, momentum=hyperparameters.get('momentum') , weight_decay=hyperparameters.get('weight_decay'))
+
+        if self.lr_schedule == 'exponential':
+            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.9)
+        elif self.lr_schedule == 'multistep':
+            scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [100, 200, 300, 400], gamma=0.1)
+        elif self.lr_schedule == 'cosine':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 300, eta_min=0.01)
+        elif self.lr_schedule == 'adaptive':
+            scheduler = 'something'
 
         start_epoch = 0
         loss = math.inf
@@ -221,7 +210,7 @@ class Hyperband:
             total = 0
             endloss = 0
             
-            t = tqdm(enumerate(trainloader),total=len(trainloader), ncols=130, position=0, bar_format="{desc:<45}{percentage:3.0f}%|{bar}{r_bar}")
+            t = tqdm(enumerate(trainloader),total=len(trainloader), ncols=130, position=0, bar_format="{desc:<50}{percentage:3.0f}%|{bar}{r_bar}")
             for batch_idx, (inputs, targets) in t:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 optimizer.zero_grad()
@@ -235,7 +224,7 @@ class Hyperband:
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()
                 
-                t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (train_loss/(batch_idx+1), (100.*correct/total), correct, total))
+                t.set_description('Training.. | loss=%0.3f | acc=%0.3f%% | %g/%g |' % (train_loss/(batch_idx+1), (100.*correct/total), correct, total))
 
                 endloss = train_loss/(batch_idx+1)
 
@@ -255,13 +244,17 @@ class Hyperband:
             'weight_decay': weight_decay,
             'conf': conf
             }
-            if not os.path.isdir('checkpoint'):
-                os.mkdir('checkpoint')
+
+            if not os.path.isdir('CIFAR10_results'):
+                os.mkdir('CIFAR10_results')
+            if not os.path.isdir('FashionMNIST_results'):
+                os.mkdir('FashionMNIST_results')
             
-            torch.save(state, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
+            if self.ds_name == 'FashionMNIST':
+                torch.save(state, './FashionMNIST_results_/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
+            elif self.ds_name == 'CIFAR10':
+                torch.save(state, './CIFAR10_results_/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
             
-        #self.test(self, testloader=testloader, checkpoint='./checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
-        #self.test(testloader, './checkpoint/'+conf+'_'+ str(momentum)+'_'+str(weight_decay)+'.pth')
         return val_loss
      
     def test(self, testloader, checkpoint):
@@ -288,7 +281,7 @@ class Hyperband:
         test_loss = 0
         correct = 0
         total = 0
-        t = tqdm(enumerate(testloader),total=len(testloader), ncols=130, position=0, bar_format="{desc:<45}{percentage:3.0f}%|{bar}{r_bar}")
+        t = tqdm(enumerate(testloader),total=len(testloader), ncols=130, position=0, bar_format="{desc:<50}{percentage:3.0f}%|{bar}{r_bar}")
 
         with torch.no_grad():
             for batch_idx, (inputs, targets) in t:
@@ -301,5 +294,5 @@ class Hyperband:
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()
 
-                t.set_description('| loss=%0.3f | acc=%0.3f%% | %g/%g |' % (test_loss/(batch_idx+1), (100.*correct/total), correct, total))
+                t.set_description('Testing.. | loss=%0.3f | acc=%0.3f%% | %g/%g |' % (test_loss/(batch_idx+1), (100.*correct/total), correct, total))
 

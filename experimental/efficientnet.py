@@ -1,5 +1,5 @@
-#EfficientNet in PyTorch.
-#Paper: "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks".
+# EfficientNet in PyTorch.
+# Paper: "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks".
 
 import torch
 import torch.nn as nn
@@ -55,10 +55,12 @@ class EfficientNet(nn.Module):
         self.cfg = cfg
 
         if color:
-            self.conv1 = nn.Conv2d(3, 32, kernel_size=3,stride=1, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(3, 32, kernel_size=3,
+                                   stride=1, padding=1, bias=False)
         else:
-            self.conv1 = nn.Conv2d(1, 32, kernel_size=3,stride=1, padding=1, bias=False)
-            
+            self.conv1 = nn.Conv2d(1, 32, kernel_size=3,
+                                   stride=1, padding=1, bias=False)
+
         self.bn1 = nn.BatchNorm2d(32)
         self.layers = self._make_layers(in_planes=32)
         self.linear = nn.Linear(cfg[-1][1], num_classes)
@@ -90,5 +92,3 @@ def EfficientNetB0(num_classes=10, color=True):
            (6, 192, 4, 2),
            (6, 320, 1, 2)]
     return EfficientNet(cfg=cfg, num_classes=num_classes, color=color)
-
-
