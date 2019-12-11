@@ -186,7 +186,7 @@ class Benchmark:
             try:
                 inputs, targets = next(dataloader_iterator)
             except StopIteration:
-                dataloader_iterator = iter(dataloader)
+                dataloader_iterator = iter(trainloader)
                 inputs, targets = next(dataloader_iterator)
 
             #inputs = inputs.view(-1, 28*28).requires_grad_()
