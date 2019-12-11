@@ -1,6 +1,7 @@
 
 ssh sxxxx@remotelx.liacs.leidenuniv.nl ->huisuil etc.
 ssh sxxxx@silver.liacs.nl -> datalab servers
+or ssh silver after huisuil
 ssh duranium -> gpu machine 7 gpus or latinum
 
 python3 -m pip install --user -> simple way.. to install packages
