@@ -28,7 +28,7 @@ class Benchmark:
         self.dataset = dataset
         self.bs = batchsize
         self.mini_iterations = mini_iterations
-        self.color = False
+        self.tensor_shape = None
 
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         self.trainloader, self.valloader, self.testloader = self.prepare_data(
@@ -39,15 +39,22 @@ class Benchmark:
         # normalize to mean depending on dataset
         if self.dataset == 'CIFAR10':
             norm = transforms.Normalize(
-                mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
-        elif self.dataset == 'FashionMNIST':
-            norm = transforms.Normalize(mean=[0.456, ], std=[0.224, ])
+                (0.49139968, 0.48215827,
+                 0.44653124), (0.24703233, 0.24348505, 0.26158768))
+        elif self.dataset == 'CIFAR100':
+            norm = transforms.Normalize(
+                (0.50707519, 0.48654887, 0.44091785), (0.26733428, 0.25643846, 0.27615049))
+        elif self.dataset == 'FashionMNIST' or self.dataset == 'MNIST':
+            norm = transforms.Normalize((0.1307,), (0.3081,))
+        else:
+            print('normalisation of data has not been implemented, pls do that')
+            exit(1)
 
         # cropping to fit with nn input size
         transform = transforms.Compose([
-            transforms.RandomResizedCrop((28, 28)),
+            # transforms.CenterCrop((28, 28)),
             # transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()])
+            transforms.ToTensor(), norm])
 
         return transform
 
@@ -62,22 +69,13 @@ class Benchmark:
         testset = getattr(torchvision.datasets, self.dataset)(
             root='../data', train=False, download=True, transform=transform)
 
-        # print(train_valset[0][0].size())
-        if train_valset[0][0].size()[0] == 3:
-            self.color = True
-        else:
-            self.color = False
+        # it assumes the data is all same size!
+        # [channel, width, height]
+        self.tensor_shape = list(train_valset[0][0].size())
 
         num_train_val = len(train_valset)
         indices = list(range(num_train_val))
-        # split = int(np.floor(val_size * num_train_val))
-        # train_idx, valid_idx = indices[split:], indices[:split]
-        # train_sampler = SubsetRandomSampler(train_idx)
-        # valid_sampler = SubsetRandomSampler(valid_idx)
 
-        # stratify split it
-        # or you could also just rely on random sampling, uncomment above and
-        # change the code
         a, b = train_test_split(
             indices, stratify=train_valset.targets, test_size=0.1, random_state=42)
 
@@ -123,7 +121,6 @@ class Benchmark:
 
         with torch.no_grad():
             for batch_idx, (inputs, targets) in t:
-                #inputs = inputs.view(-1, 28*28).requires_grad_()
                 inputs, targets = inputs.to(
                     self.device), targets.to(self.device)
 
@@ -145,17 +142,10 @@ class Benchmark:
 
         if not hasattr(sys.modules[__name__], self.model):
             print('====> Model doesn\'t exist!')
-            exit(0)
+            exit(1)
 
-        net = getattr(sys.modules[__name__], self.model)(color=self.color)
-        # if self.color is True:
-        #input_dim = 28*28*3
-        # else:
-        #input_dim = 28*28
-
-        #hidden_dim = 100
-        #output_dim = 10
-        #net = getattr(sys.modules[__name__], self.model)(input_dim, hidden_dim, output_dim)
+        net = getattr(sys.modules[__name__], self.model)(
+            tensor_shape=self.tensor_shape)
 
         net = net.to(self.device)
 
@@ -167,7 +157,9 @@ class Benchmark:
         lr = hyperparameters.get('lr')
         print('\nLearning rate is: %f' % lr)
 
-        optimizer = optim.SGD(net.parameters(), lr=lr)
+        optimizer = optim.SGD(net.parameters(), **
+                              hyperparameters.get_dictionary())
+        # optimizer = optim.Adam(params=net.parameters(),lr = hyperparameters.get('lr'))
         loss = math.inf
 
         # start train mode
@@ -188,8 +180,6 @@ class Benchmark:
             except StopIteration:
                 dataloader_iterator = iter(trainloader)
                 inputs, targets = next(dataloader_iterator)
-
-            #inputs = inputs.view(-1, 28*28).requires_grad_()
 
             inputs, targets = inputs.to(
                 self.device), targets.to(self.device)

@@ -5,9 +5,9 @@ import numpy as np
 from .bandit import Bandit
 
 
-class SuccessiveHalving(Bandit):
+class Successive_halving(Bandit):
     def __init__(self, benchmark, params, max_iter, eta):
-        super(SuccessiveHalving, self).__init__(
+        super(Successive_halving, self).__init__(
             benchmark, params, max_iter, eta)
 
     def tune(self):

@@ -51,16 +51,12 @@ class Block(nn.Module):
 
 
 class EfficientNet(nn.Module):
-    def __init__(self, cfg, num_classes, color):
+    def __init__(self, cfg, num_classes, tensor_shape):
         super(EfficientNet, self).__init__()
         self.cfg = cfg
 
-        if color:
-            self.conv1 = nn.Conv2d(3, 32, kernel_size=3,
-                                   stride=1, padding=1, bias=False)
-        else:
-            self.conv1 = nn.Conv2d(1, 32, kernel_size=3,
-                                   stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(tensor_shape[0], 32, kernel_size=3,
+                               stride=1, padding=1, bias=False)
 
         self.bn1 = nn.BatchNorm2d(32)
         self.layers = self._make_layers(in_planes=32)
@@ -83,7 +79,7 @@ class EfficientNet(nn.Module):
         return out
 
 
-def EfficientNetB0(num_classes=10, color=True):
+def EfficientNetB0(tensor_shape, num_classes=10):
     # (expansion, out_planes, num_blocks, stride)
     cfg = [(1,  16, 1, 2),
            (6,  24, 2, 1),
@@ -92,5 +88,4 @@ def EfficientNetB0(num_classes=10, color=True):
            (6, 112, 3, 1),
            (6, 192, 4, 2),
            (6, 320, 1, 2)]
-    return EfficientNet(cfg=cfg, num_classes=num_classes, color=color)
-
+    return EfficientNet(cfg=cfg, tensor_shape=tensor_shape, num_classes=num_classes,)
