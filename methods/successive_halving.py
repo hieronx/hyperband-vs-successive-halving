@@ -6,9 +6,8 @@ from .bandit import Bandit
 
 
 class Successive_halving(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta):
-        super(Successive_halving, self).__init__(
-            benchmark, params, max_iter, eta)
+    def __init__(self, benchmark, params, max_iter, eta, run_datetime):
+        super(Successive_halving, self).__init__(benchmark, params, max_iter, eta, run_datetime)
 
     def tune(self):
         best_hyperparameters = {}

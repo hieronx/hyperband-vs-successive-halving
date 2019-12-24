@@ -1,6 +1,4 @@
 __pycache__
 .DS_Store
 .ipynb_checkpoints
-data/*.tar.gz
-data/cifar-10-batches-py
-data/FashionMNIST
+data/*

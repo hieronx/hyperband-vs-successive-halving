@@ -8,12 +8,12 @@ import ConfigSpace.hyperparameters as CSH
 import os.path
 from os import path
 
-
 class Bandit:
 
-    def __init__(self, benchmark, params, max_iter=81, eta=3):
+    def __init__(self, benchmark, params, max_iter=81, eta=3, run_datetime=''):
         self.benchmark = benchmark
         self.params = params
+        self.run_datetime = run_datetime
 
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta  # defines downsampling rate (default=3)
@@ -37,7 +37,8 @@ class Bandit:
         return cs
 
     def save_results(self, lr, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy):
-        name = "./results/"+self.__class__.__name__ + ".csv"
+        name = "./results/" + self.run_datetime + '_' + self.__class__.__name__.lower() + ".csv"
+
         if not path.exists(name):
             header = 'learning_rate, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy\n'
             with open(name, 'w') as f:
@@ -46,6 +47,7 @@ class Bandit:
         line = str(lr)+','+str(bracket) + ',' + str(n_i)+',' + str(r_i)+',' + str(train_loss) + ',' + str(train_accuracy) + ',' + str(val_loss) + \
             ',' + str(val_accuracy)+',' + str(test_loss) + \
             ',' + str(test_accuracy) + '\n'
+            
         with open(name, 'a') as f:
             f.write(line)
 

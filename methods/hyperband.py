@@ -7,8 +7,8 @@ from .bandit import Bandit
 
 
 class Hyperband(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta):
-        super(Hyperband, self).__init__(benchmark, params, max_iter, eta)
+    def __init__(self, benchmark, params, max_iter, eta, run_datetime):
+        super(Hyperband, self).__init__(benchmark, params, max_iter, eta, run_datetime)
 
     def tune(self):
         best_hyperparameters = {}
@@ -17,6 +17,7 @@ class Hyperband(Bandit):
         for s in reversed(range(self.s_max+1)):
             # initial number of configurations
             n = int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s))
+
             # initial number of iterations to run configurations for
             r = self.max_iter * self.eta**(-s)
 
