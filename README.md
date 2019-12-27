@@ -13,10 +13,16 @@ conda activate hb-vs-sh
 
 ## Usage
 
-To run the benchmark use the command:
+To run the baseline model use the command:
 
 ```
-python main.py
+python main.py baseline
+```
+
+To train other models, use this to print all command-line options:
+
+```
+python main.py -h
 ```
 
 ### Modifying hyperparameters

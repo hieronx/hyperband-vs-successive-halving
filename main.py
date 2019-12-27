@@ -5,6 +5,26 @@ from methods.hyperband import Hyperband
 from methods.successive_halving import Successive_halving
 from wrapper.benchmark import Benchmark
 
+def start_script(args):
+    if args.script == 'baseline':
+        run_datetime = time.strftime("%Y%m%d-%H%M%S")
+        params = [['lr', 0.001, 0.05, True], ['momentum', 0.89, 0.9, False]]
+        benchmark = Benchmark(args.model_name, args.dataset, args.batch_size, args.mini_iterations)
+
+        base_R = 10
+        eta = 3
+        for R_multiple in range(2, 11):
+            R = base_R * R_multiple
+            print('Running Hyperband with R = %d and η = %d' % (R, eta))
+            # hb = Hyperband(benchmark, params, R, eta, run_datetime)
+            # hb.tune()
+
+            print('Running Successive Halving with R = %d and η = %d' % (R, eta))
+            # sh = Successive_halving(benchmark, params, args.iterations, args.eta, run_datetime)
+            # sh.tune()
+
+
+
 def run(args):
     # hyperparameters space
     # watch out for loss nan's that means gradient is vanishing or exploding!
@@ -28,6 +48,8 @@ def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Hyperband vs Successive Halving", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    parser.add_argument('script', nargs='?', default='')
+
     parser.add_argument('--hyperband', dest='hyperband', action='store_true')
     parser.add_argument('--successive_halving', dest='hyperband', action='store_false')
     parser.set_defaults(hyperband=True)
@@ -45,4 +67,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    run(args)
+    if args.script:
+        start_script(args)
+    else:
+        run(args)
