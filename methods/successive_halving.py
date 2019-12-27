@@ -6,8 +6,8 @@ from .bandit import Bandit
 
 
 class Successive_halving(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta, run_datetime):
-        super(Successive_halving, self).__init__(benchmark, params, max_iter, eta, run_datetime)
+    def __init__(self, benchmark, params, max_iter, eta, log_fn):
+        super(Successive_halving, self).__init__(benchmark, params, max_iter, eta, log_fn)
 
     def tune(self):
         best_hyperparameters = {}
@@ -32,7 +32,7 @@ class Successive_halving(Bandit):
 
                 val_losses.append(train_loss)
 
-                self.save_results(t.get('lr'), 4, n_i, r_i, train_loss, train_accuracy,
+                self.save_results('sh', self.max_iter, self.eta, t.get('lr'), 4, n_i, r_i, train_loss, train_accuracy,
                                   val_loss, val_accuracy, test_loss, test_accuracy)
 
             best_ix = np.argsort(val_losses)[0:int(n_i / 2)]

@@ -7,8 +7,8 @@ from .bandit import Bandit
 
 
 class Hyperband(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta, run_datetime):
-        super(Hyperband, self).__init__(benchmark, params, max_iter, eta, run_datetime)
+    def __init__(self, benchmark, params, max_iter, eta, log_fn):
+        super(Hyperband, self).__init__(benchmark, params, max_iter, eta, log_fn)
 
     def tune(self):
         best_hyperparameters = {}
@@ -35,7 +35,7 @@ class Hyperband(Bandit):
 
                     val_losses.append(train_loss)
 
-                    self.save_results(t.get('lr'), s, n_i, r_i, train_loss, train_accuracy,
+                    self.save_results('hb', self.max_iter, self.eta, t.get('lr'), s, n_i, r_i, train_loss, train_accuracy,
                                       val_loss, val_accuracy, test_loss, test_accuracy)
 
                 best_ix = np.argsort(val_losses)[0:int(n_i / self.eta)]

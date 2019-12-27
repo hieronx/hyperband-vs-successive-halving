@@ -10,10 +10,10 @@ from os import path
 
 class Bandit:
 
-    def __init__(self, benchmark, params, max_iter=81, eta=3, run_datetime=''):
+    def __init__(self, benchmark, params, max_iter=81, eta=3, filename=''):
         self.benchmark = benchmark
         self.params = params
-        self.run_datetime = run_datetime
+        self.filename = filename
 
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta  # defines downsampling rate (default=3)
@@ -36,15 +36,15 @@ class Bandit:
 
         return cs
 
-    def save_results(self, lr, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy):
-        name = "./results/" + self.run_datetime + '_' + self.__class__.__name__.lower() + ".csv"
+    def save_results(self, optimizer, max_iter, eta, lr, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy):
+        name = "./results/" + self.filename + ".csv"
 
         if not path.exists(name):
-            header = 'learning_rate, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy\n'
+            header = 'optimizer, max_iter, eta, learning_rate, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy\n'
             with open(name, 'w') as f:
                 f.write(header)
 
-        line = str(lr)+','+str(bracket) + ',' + str(n_i)+',' + str(r_i)+',' + str(train_loss) + ',' + str(train_accuracy) + ',' + str(val_loss) + \
+        line = str(optimizer)+','+str(max_iter)+','+str(eta)+','+str(lr)+','+str(bracket) + ',' + str(n_i)+',' + str(r_i)+',' + str(train_loss) + ',' + str(train_accuracy) + ',' + str(val_loss) + \
             ',' + str(val_accuracy)+',' + str(test_loss) + \
             ',' + str(test_accuracy) + '\n'
             

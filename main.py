@@ -7,20 +7,28 @@ from wrapper.benchmark import Benchmark
 
 def start_script(args):
     if args.script == 'baseline':
-        run_datetime = time.strftime("%Y%m%d-%H%M%S")
+        model_name = 'SmallCNN'
+        dataset = 'FashionMNIST'
+        batch_size = 64
+        mini_iterations = 100
         params = [['lr', 0.001, 0.05, True], ['momentum', 0.89, 0.9, False]]
-        benchmark = Benchmark(args.model_name, args.dataset, args.batch_size, args.mini_iterations)
+
+        benchmark = Benchmark(model_name, dataset, batch_size, mini_iterations)
+
+        run_datetime = time.strftime("%Y%m%d-%H%M%S")
+        log_fn = '%s-baseline' % (run_datetime)
 
         base_R = 10
         eta = 3
         for R_multiple in range(2, 11):
             R = base_R * R_multiple
             print('Running Hyperband with R = %d and η = %d' % (R, eta))
-            # hb = Hyperband(benchmark, params, R, eta, run_datetime)
-            # hb.tune()
+            
+            hb = Hyperband(benchmark, params, R, eta, log_fn)
+            hb.tune()
 
             print('Running Successive Halving with R = %d and η = %d' % (R, eta))
-            # sh = Successive_halving(benchmark, params, args.iterations, args.eta, run_datetime)
+            # sh = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn)
             # sh.tune()
 
 
@@ -37,11 +45,12 @@ def run(args):
     benchmark = Benchmark(args.model_name, args.dataset, args.batch_size, args.mini_iterations)
 
     run_datetime = time.strftime("%Y%m%d-%H%M%S")
+    log_fn = '%s-hb_R%s_η%s' % (run_datetime, args.iterations, args.eta)
 
     if args.hyperband:
-        hb = Hyperband(benchmark, params, args.iterations, args.eta, run_datetime)
+        hb = Hyperband(benchmark, params, args.iterations, args.eta, log_fn)
     else:
-        hb = Successive_halving(benchmark, params, args.iterations, args.eta, run_datetime)
+        hb = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn)
 
     hb.tune()
 
