@@ -112,7 +112,7 @@ class Benchmark:
         total = 0
 
         t = tqdm(enumerate(loader), total=len(loader), ncols=145,
-                 position=0, bar_format="{desc:<55}{percentage:3.0f}%|{bar}{r_bar}")
+                 position=0, bar_format="{desc:<55}{percentage:3.0f}%|{bar}{r_bar}", leave=False)
 
         if test:
             message = 'Testing... | loss=%0.3f | acc=%0.3f%% | %g/%g |'
@@ -170,7 +170,7 @@ class Benchmark:
         total = 0
 
         t = tqdm(range(iterations*self.mini_iterations), total=iterations*self.mini_iterations, ncols=145,
-                 position=0, bar_format="{desc:<55}{percentage:3.0f}%|{bar}{r_bar}", file=sys.stdout)
+                 position=0, bar_format="{desc:<55}{percentage:3.0f}%|{bar}{r_bar}", leave=False)
 
         dataloader_iterator = iter(trainloader)
 
