@@ -7,7 +7,7 @@ from .bandit import Bandit
 
 
 class Hyperband(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta, log_fn):
+    def __init__(self, benchmark, params, max_iter, eta, log_fn, args):
         super(Hyperband, self).__init__(benchmark, params, max_iter, eta, log_fn)
 
     def tune(self):

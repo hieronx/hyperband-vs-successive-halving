@@ -32,11 +32,11 @@ def start_script(args):
             R = base_R * R_multiple
             print('Running Hyperband with R = %d and η = %d' % (R, eta))
             
-            hb = Hyperband(benchmark, params, R, eta, log_fn)
+            hb = Hyperband(benchmark, params, R, eta, log_fn, args)
             hb.tune()
 
             print('Running Successive Halving with R = %d and η = %d' % (R, eta))
-            sh = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn)
+            sh = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn, args)
             sh.tune()
 
 
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--mini_iterations', type=int, default=100)
 
-    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--seed', type=int, default=0)
 
     parser.add_argument('--dry_run', help='Dry run', action='store_true')
 
