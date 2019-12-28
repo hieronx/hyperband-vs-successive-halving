@@ -23,12 +23,13 @@ from .models import *
 
 class Benchmark:
 
-    def __init__(self, model, dataset, batchsize, mini_iterations):
+    def __init__(self, model, dataset, batchsize, mini_iterations, args):
         self.model = model
         self.dataset = dataset
         self.bs = batchsize
         self.mini_iterations = mini_iterations
         self.tensor_shape = None
+        self.args = args
 
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         self.trainloader, self.valloader, self.testloader = self.prepare_data(
@@ -204,12 +205,15 @@ class Benchmark:
 
     # runs the training, validation and testing; returns val loss
     def run(self, iterations, hyperparameters):
-        # train, validate and test
-        train_loss, train_accuracy, net = self.train(
-            self.trainloader, iterations, hyperparameters)
+        if self.args.dry_run:
+            return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        else:
+            # train, validate and test
+            train_loss, train_accuracy, net = self.train(
+                self.trainloader, iterations, hyperparameters)
 
-        val_loss, val_accuracy = self.validate(net, self.valloader, False)
+            val_loss, val_accuracy = self.validate(net, self.valloader, False)
 
-        test_loss, test_accuracy = self.validate(net, self.testloader, True)
+            test_loss, test_accuracy = self.validate(net, self.testloader, True)
 
-        return train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy
+            return train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy
