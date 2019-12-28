@@ -8,6 +8,7 @@ from .bandit import Bandit
 class Successive_halving(Bandit):
     def __init__(self, benchmark, params, max_iter, eta, log_fn, args):
         super(Successive_halving, self).__init__(benchmark, params, max_iter, eta, log_fn)
+        self.args = args
 
     def tune(self):
         best_global_hyperparameters = {}
@@ -21,7 +22,7 @@ class Successive_halving(Bandit):
             n = int(math.ceil(int(self.max_iter) * 2))
             r = self.max_iter  # initial number of iterations to run configurations for
 
-            hs = self.create_hyperparameterspace(args.seed, self.params)
+            hs = self.create_hyperparameterspace(self.args.seed, self.params)
             T = [hs.sample_configuration() for i in range(n)]
 
             for i in range(4):
