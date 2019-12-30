@@ -36,7 +36,7 @@ def start_script(args):
             hb.tune()
 
             print('Running Successive Halving with R = %d and η = %d' % (R, eta))
-            sh = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn, args)
+            sh = Successive_halving(benchmark, params, R, eta, log_fn, args)
             sh.tune()
 
 

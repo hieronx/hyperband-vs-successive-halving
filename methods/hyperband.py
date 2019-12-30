@@ -11,6 +11,7 @@ class Hyperband(Bandit):
         super(Hyperband, self).__init__(benchmark, params, max_iter, eta, log_fn)
 
     def tune(self):
+        cumulative = 0;
         best_hyperparameters = {}
         best_loss = math.inf
 
@@ -23,10 +24,11 @@ class Hyperband(Bandit):
 
             hs = self.create_hyperparameterspace(s, self.params)
             T = [hs.sample_configuration() for i in range(n)]
-
+            
             for i in range(s+1):
                 n_i = n * self.eta**(-i)
                 r_i = r * self.eta ** (i)
+                cumulative += int(r_i * n_i)
                 val_losses = []
 
                 for t in T:
