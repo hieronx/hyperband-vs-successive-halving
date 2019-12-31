@@ -2,93 +2,50 @@ import argparse
 import time
 import torch
 import numpy as np
+import sys
 
 from methods.hyperband import Hyperband
 from methods.successive_halving import Successive_halving
+from methods.ultils import parse
+
 from wrapper.benchmark import Benchmark
 
-def set_seed(args):
+
+if __name__ == '__main__':
+
+    args = parse(sys.argv[1:])
+
+    # Set the seed
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-def start_script(args):
-    set_seed(args)
+    # params , name; lowerbound; upperbound; logsampling, if lower==upper then it is a static choice
+    params = [['lr', 0.003, 0.3, False], ['momentum', 0.9, 0.9, False]]
 
-    if args.script == 'baseline':
-        model_name = 'SmallCNN'
-        dataset = 'FashionMNIST'
-        batch_size = 64
-        mini_iterations = 100
-        params = [['lr', 0.001, 0.05, True], ['momentum', 0.89, 0.9, False]]
-
-        benchmark = Benchmark(model_name, dataset, batch_size, mini_iterations, args)
-
-        run_datetime = time.strftime("%Y%m%d-%H%M%S")
-        log_fn = '%s-baseline' % (run_datetime)
-
-        base_R = 10
-        eta = 3
-        for R_multiple in range(2, 11):
-            R = base_R * R_multiple
-            print('Running Hyperband with R = %d and η = %d' % (R, eta))
-            
-            hb = Hyperband(benchmark, params, R, eta, log_fn, args)
-            hb.tune()
-
-            print('Running Successive Halving with R = %d and η = %d' % (R, eta))
-            sh = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn, args)
-            sh.tune()
-
-
-
-def run(args):
-    set_seed(args)
-    
-    # hyperparameters space
-    # watch out for loss nan's that means gradient is vanishing or exploding!
-    params = [['lr', 0.001, 0.05, True], ['momentum', 0.89, 0.9, False]]
-
-    # set up benchmark environment for testing configs, model, dataset, batchsize
-    # color defines if input of cnn has 1 or 3 channels
-    # args** model, datasetname, batchsize, mini-iterations
-    # MNIST, FashionMNIST, CIFAR10
-    benchmark = Benchmark(args.model_name, args.dataset, args.batch_size, args.mini_iterations, args)
+    benchmark = Benchmark(args.model_name, args.dataset,
+                          args.batch_size, args.mini_iterations, args.seed, args.dry_run)
 
     run_datetime = time.strftime("%Y%m%d-%H%M%S")
-    log_fn = '%s-hb_R%s_η%s' % (run_datetime, args.iterations, args.eta)
+    postfix = 'seed' + str(args.seed) + '-' + str(run_datetime)
 
-    if args.hyperband:
-        hb = Hyperband(benchmark, params, args.iterations, args.eta, log_fn)
-    else:
-        hb = Successive_halving(benchmark, params, args.iterations, args.eta, log_fn)
+    hb_filename = 'hb-R' + str(args.iterations) + '-to-R' + \
+        str(args.mult_r*args.iterations) + '-' + postfix
+    sh_filename = 'sh-R' + str(args.iterations) + '-to-R' + \
+        str(args.mult_r*args.iterations) + '-' + postfix
 
-    hb.tune()
+    for R_multiple in range(1, args.mult_r+1, args.step_r):
+        R = args.iterations * R_multiple
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Hyperband vs Successive Halving", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        if args.hyperband:
+            print('Running Hyperband with R = %d and η = %d' % (R, args.eta))
 
-    parser.add_argument('script', nargs='?', default='')
+            hb = Hyperband(benchmark, params, max_iter=R, eta=args.eta,
+                           seed=args.seed, filename=hb_filename)
+            hb.tune()
 
-    parser.add_argument('--hyperband', dest='hyperband', action='store_true')
-    parser.add_argument('--successive_halving', dest='hyperband', action='store_false')
-    parser.set_defaults(hyperband=True)
-
-    parser.add_argument('--iterations', type=int, default=81)
-    parser.add_argument('--eta', type=int, default=3)
-
-    parser.add_argument('--model_name', default='SimpleCNN')
-    parser.add_argument('--dataset', default='MNIST')
-
-    parser.add_argument('--batch_size', type=int, default=100)
-    parser.add_argument('--mini_iterations', type=int, default=100)
-
-    parser.add_argument('--seed', type=int, default=0)
-
-    parser.add_argument('--dry_run', help='Dry run', action='store_true')
-
-    args = parser.parse_args()
-
-    if args.script:
-        start_script(args)
-    else:
-        run(args)
+        if args.successive_halving:
+            print('Running Successive Halving with R = %d and η = %d' %
+                  (R, args.eta))
+            sh = Successive_halving(
+                benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename)
+            sh.tune()
