@@ -19,4 +19,5 @@ class SmallCNN(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x)
+        # according to the depreciated func, dim=1 if matrix else 0
+        return F.log_softmax(x, dim=1)

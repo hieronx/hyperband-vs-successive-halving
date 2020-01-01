@@ -40,8 +40,19 @@ class Benchmark:
 
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-        if not self.dry_run:
-            self.trainloader, self.valloader, self.testloader = self.prepare_data()
+        self.trainloader, self.valloader, self.testloader = self.prepare_data()
+
+    # save meta-info as dict
+    def get_meta(self):
+        meta = {'model': self.model, 'dataset': self.dataset, 'bs': self.bs, 'mini_iterations': self.mini_iterations,
+                'size_train': self.size_train, 'size_val': self.size_val, 'size_test': self.size_test, 'tensor_shape': self.tensor_shape}
+        return meta
+
+    # this gets the lr from the optimizer, for when we wants to use lr decay e.g lr schedules
+    # as indicated in the paper for diverse convergence rates
+    def get_lr(self, optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
 
     # does transforms on data to be used with model
     def transform_data(self):
@@ -109,7 +120,7 @@ class Benchmark:
         return trainloader, valloader, testloader
 
     # validate runs the val and test data and returns the loss and acc
-    def validate(self, net, loader, test):
+    def validate(self, net, loader, test, hyperparameters):
         net = net.to(self.device)
 
         if self.device == 'cuda:0':
@@ -129,9 +140,9 @@ class Benchmark:
                  position=1, bar_format="{desc:<55}{percentage:3.0f}%|{bar}{r_bar}", leave=False)
 
         if test:
-            message = 'Testing... | loss=%0.3f | acc=%0.3f%% | %g/%g |'
+            message = 'Testing... | lr=%0.04f | loss=%0.3f | acc=%0.3f%% | %g/%g |'
         else:
-            message = 'Validate.. | loss=%0.3f | acc=%0.3f%% | %g/%g |'
+            message = 'Validate.. | lr=%0.04f | loss=%0.3f | acc=%0.3f%% | %g/%g |'
 
         with torch.no_grad():
             for batch_idx, (inputs, targets) in t:
@@ -147,12 +158,14 @@ class Benchmark:
                 correct += predicted.eq(targets).sum().item()
 
                 t.set_description(message %
-                                  (val_loss/(batch_idx+1), (100.*correct/total), correct, total))
+                                  (hyperparameters.get('lr'), val_loss/(batch_idx+1), (100.*correct/total), correct, total))
 
         return (val_loss/(batch_idx+1)), (100.*correct/total)
 
     # train runs the train iterator and returns the running loss, acc and trained modelcd
     def train(self, trainloader, iterations, hyperparameters):
+        #set seed again, so that each model will have the same init weights
+        torch.manual_seed(self.seed)
 
         if not hasattr(sys.modules[__name__], self.model):
             print('====> Model doesn\'t exist!')
@@ -168,12 +181,12 @@ class Benchmark:
             cudnn.benchmark = True
 
         criterion = nn.CrossEntropyLoss()
-        lr = hyperparameters.get('lr')
-        print('\nLearning rate is: %f' % lr)
 
         optimizer = optim.SGD(net.parameters(), **
                               hyperparameters.get_dictionary())
         # optimizer = optim.Adam(params=net.parameters(),lr = hyperparameters.get('lr'))
+        #lr = self.get_lr(optimizer)
+
         loss = math.inf
 
         # start train mode
@@ -212,8 +225,8 @@ class Benchmark:
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
-            t.set_description('Training.. | loss=%0.3f | acc=%0.3f%% | %g/%g |' %
-                              (train_loss/(i+1), (100.*correct/total), correct, total))
+            t.set_description('Training.. | lr=%0.4f | loss=%0.3f | acc=%0.3f%% | %g/%g |' %
+                              (hyperparameters.get('lr'), train_loss/(i+1), (100.*correct/total), correct, total))
 
             running_loss = train_loss / (i + 1)
 
@@ -228,9 +241,10 @@ class Benchmark:
             train_loss, train_accuracy, net = self.train(
                 self.trainloader, iterations, hyperparameters)
 
-            val_loss, val_accuracy = self.validate(net, self.valloader, False)
+            val_loss, val_accuracy = self.validate(
+                net, self.valloader, False, hyperparameters)
 
             test_loss, test_accuracy = self.validate(
-                net, self.testloader, True)
+                net, self.testloader, True, hyperparameters)
 
             return train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy

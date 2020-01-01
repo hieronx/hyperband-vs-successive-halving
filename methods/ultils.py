@@ -37,6 +37,9 @@ def parse(args):
     parser.add_argument('--dry_run', action='store_true',
                         help='Runs the whole experiment without training the models')
 
+    parser.add_argument('--save', action='store_true',
+                        help='If added stores the train, val, test, lr, brackets etc.. results of all models')
+
     arg = parser.parse_args(args)
 
     if (arg.mult_r % arg.step_r) is not 0:
