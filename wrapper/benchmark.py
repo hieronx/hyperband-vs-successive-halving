@@ -64,6 +64,7 @@ class Benchmark:
         elif self.dataset == 'CIFAR100':
             norm = transforms.Normalize(
                 (0.50707519, 0.48654887, 0.44091785), (0.26733428, 0.25643846, 0.27615049))
+        # is this Fashion MNIST mean, std value correct?
         elif self.dataset == 'FashionMNIST' or self.dataset == 'MNIST':
             norm = transforms.Normalize((0.1307,), (0.3081,))
         else:
@@ -163,7 +164,7 @@ class Benchmark:
         return (val_loss/(batch_idx+1)), (100.*correct/total)
 
     # train runs the train iterator and returns the running loss, acc and trained modelcd
-    def train(self, trainloader, iterations, hyperparameters, reuse=False, results=None):
+    def train(self, trainloader, iterations, hyperparameters):
         # set seed again, so that each model will have the same init weights
         torch.manual_seed(self.seed)
 
@@ -173,9 +174,6 @@ class Benchmark:
 
         net = getattr(sys.modules[__name__], self.model)(
             tensor_shape=self.tensor_shape)
-
-        if reuse:
-            net.load_state_dict(results['model'])
 
         net = net.to(self.device)
 
@@ -188,12 +186,6 @@ class Benchmark:
         optimizer = optim.SGD(net.parameters(), **
                               hyperparameters.get_dictionary())
 
-        if reuse:
-            optimizer.load_state_dict(results['optimizer'])
-
-        # optimizer = optim.Adam(params=net.parameters(),lr = hyperparameters.get('lr'))
-        #lr = self.get_lr(optimizer)
-
         loss = math.inf
 
         # start train mode
@@ -203,11 +195,13 @@ class Benchmark:
         correct = 0
         total = 0
 
+        # resources iterations * mini-iterations rounded down
         total_resource = int(iterations * self.mini_iterations)
 
         t = tqdm(range(total_resource), total=total_resource, ncols=145,
                  position=1, bar_format="{desc:<55}{percentage:3.0f}%|{bar}{r_bar}", leave=False)
 
+        # iterator for training
         dataloader_iterator = iter(trainloader)
 
         for i in t:
@@ -237,28 +231,22 @@ class Benchmark:
 
             running_loss = train_loss / (i + 1)
 
-        return running_loss, (100.*correct/total), net, optimizer
+        return running_loss, (100.*correct/total), net
 
     # runs the training, validation and testing; returns val loss
-    def run(self, iterations, hyperparameters, reuse=False, results=None):
+    def run(self, iterations, hyperparameters):
 
         if self.dry_run:
-            # {'hyperparameters': hyperparameters, 'model': None, 'optimizer': None, 'train_loss': 0.0,
-            # 'train_accuracy': 0.0, 'val_loss': 0.0, 'val_accuracy': 0.0, 'test_loss': 0.0, 'test_accuracy': 0.0}
             return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         else:
             # train, validate and test
-            train_loss, train_accuracy, net, optimizer = self.train(
-                self.trainloader, iterations, hyperparameters, reuse=reuse, results=results)
+            train_loss, train_accuracy, net = self.train(
+                self.trainloader, iterations, hyperparameters)
 
             val_loss, val_accuracy = self.validate(
                 net, self.valloader, False, hyperparameters)
 
             test_loss, test_accuracy = self.validate(
                 net, self.testloader, True, hyperparameters)
-
-            # results as dict
-            # results = {'hyperparameters': hyperparameters, 'model': net.state_dict(), 'optimizer': optimizer.state_dict(), 'train_loss': train_loss,
-            #           'train_accuracy': train_accuracy, 'val_loss': val_loss, 'val_accuracy': val_accuracy, 'test_loss': test_loss, 'test_accuracy': test_accuracy}
 
             return train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy

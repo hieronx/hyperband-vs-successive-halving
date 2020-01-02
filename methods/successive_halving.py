@@ -28,7 +28,7 @@ class Successive_halving(Bandit):
 
         pbar = tqdm(total=configs, position=0, desc='Progress |')
 
-        for x in range(s):
+        for x in range(s+1):
             best_hyperparameters = {}
             best_loss = math.inf
 

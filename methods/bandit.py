@@ -7,7 +7,6 @@ import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 import os.path
 from os import path
-from operator import itemgetter
 
 
 class Bandit:
@@ -54,17 +53,15 @@ class Bandit:
         print('Bracket %s : %s resources' % (s, int(resource)))
         return resource, configs
 
-    # configs are not unique, these are the configs trained
+    # configs are not unique, these are the configs trained from scratch each time
     def get_total_info(self, hb=True, reuse=False):
         total_resource = 0
         total_configs = 0
         unique_configs = 0
         s = self.s_max
 
-        if hb:
-            outer_loop = self.s_max + 1
-        else:
-            outer_loop = self.s_max
+        # both sh and hb have an outerloop of s_max + 1
+        outer_loop = self.s_max + 1
 
         for x in reversed(range(outer_loop)):
             if hb:
@@ -103,13 +100,6 @@ class Bandit:
                     self.save_results(t.get('lr'), s, n_i, r_i, train_loss,
                                       train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy)
 
-                #results = self.benchmark.run(iterations=r_i, hyperparameters=t)
-
-                #val_losses.append(results)
-
-                #if self.save:
-                    #self.save_results(t.get('lr'), s, n_i, r_i, results['train_loss'],
-                                      #results['train_accuracy'], results['val_loss'], results['val_accuracy'], results['test_loss'], results['test_accuracy'])
                 if pbar:
                     pbar.update(1)
 

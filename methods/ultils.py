@@ -17,22 +17,22 @@ def parse(args):
     parser.add_argument('--eta', type=int, default=3, help='Set the eta')
 
     parser.add_argument('--model_name', default='SmallCNN',
-                        help='Set the modelname')
+                        help='Set the modelname (default=SmallCNN)')
     parser.add_argument('--dataset', default='FashionMNIST',
-                        help='Set the dataset')
+                        help='Set the dataset (default=FashionMNIST)')
 
     parser.add_argument('--batch_size', type=int,
-                        default=64, help='Set the batch size')
+                        default=64, help='Set the batch size (default=64)')
     parser.add_argument('--mini_iterations', type=int,
-                        default=100, help='Set the number of mini-iterations')
+                        default=100, help='Set the number of mini-iterations (default=100)')
 
     parser.add_argument('--mult_r', type=int, default=1,
-                        help='Set the maximum budget, running the experiments every step_r from 1 till mult_r, with each time (iterations x step_r) more resources')
+                        help='Set the maximum budget, running the experiments every step_r from 1 till mult_r, with each time (iterations x step_r) more resources (default=1)')
     parser.add_argument('--step_r', type=int, default=1,
-                        help='Set the coarsity the resourses, runs an experiment every step_r from 1 till mult_r')
+                        help='Set the coarsity the resourses, runs an experiment every step_r from 1 till mult_r (default=1)')
 
     parser.add_argument('--seed', type=int, default=2020,
-                        help='Set the seed for experimental consistency')
+                        help='Set the seed for experimental consistency (default=2020)')
 
     parser.add_argument('--dry_run', action='store_true',
                         help='Runs the whole experiment without training the models')
