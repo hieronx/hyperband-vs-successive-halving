@@ -163,8 +163,8 @@ class Benchmark:
         return (val_loss/(batch_idx+1)), (100.*correct/total)
 
     # train runs the train iterator and returns the running loss, acc and trained modelcd
-    def train(self, trainloader, iterations, hyperparameters):
-        #set seed again, so that each model will have the same init weights
+    def train(self, trainloader, iterations, hyperparameters, reuse=False, results=None):
+        # set seed again, so that each model will have the same init weights
         torch.manual_seed(self.seed)
 
         if not hasattr(sys.modules[__name__], self.model):
@@ -173,6 +173,9 @@ class Benchmark:
 
         net = getattr(sys.modules[__name__], self.model)(
             tensor_shape=self.tensor_shape)
+
+        if reuse:
+            net.load_state_dict(results['model'])
 
         net = net.to(self.device)
 
@@ -184,6 +187,10 @@ class Benchmark:
 
         optimizer = optim.SGD(net.parameters(), **
                               hyperparameters.get_dictionary())
+
+        if reuse:
+            optimizer.load_state_dict(results['optimizer'])
+
         # optimizer = optim.Adam(params=net.parameters(),lr = hyperparameters.get('lr'))
         #lr = self.get_lr(optimizer)
 
@@ -230,21 +237,28 @@ class Benchmark:
 
             running_loss = train_loss / (i + 1)
 
-        return running_loss, (100.*correct/total), net
+        return running_loss, (100.*correct/total), net, optimizer
 
     # runs the training, validation and testing; returns val loss
-    def run(self, iterations, hyperparameters):
+    def run(self, iterations, hyperparameters, reuse=False, results=None):
+
         if self.dry_run:
+            # {'hyperparameters': hyperparameters, 'model': None, 'optimizer': None, 'train_loss': 0.0,
+            # 'train_accuracy': 0.0, 'val_loss': 0.0, 'val_accuracy': 0.0, 'test_loss': 0.0, 'test_accuracy': 0.0}
             return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         else:
             # train, validate and test
-            train_loss, train_accuracy, net = self.train(
-                self.trainloader, iterations, hyperparameters)
+            train_loss, train_accuracy, net, optimizer = self.train(
+                self.trainloader, iterations, hyperparameters, reuse=reuse, results=results)
 
             val_loss, val_accuracy = self.validate(
                 net, self.valloader, False, hyperparameters)
 
             test_loss, test_accuracy = self.validate(
                 net, self.testloader, True, hyperparameters)
+
+            # results as dict
+            # results = {'hyperparameters': hyperparameters, 'model': net.state_dict(), 'optimizer': optimizer.state_dict(), 'train_loss': train_loss,
+            #           'train_accuracy': train_accuracy, 'val_loss': val_loss, 'val_accuracy': val_accuracy, 'test_loss': test_loss, 'test_accuracy': test_accuracy}
 
             return train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy

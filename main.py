@@ -35,14 +35,17 @@ if __name__ == '__main__':
         R = args.iterations * R_multiple
 
         if args.hyperband:
-            print('\nRunning Hyperband with R = %d and η = %d' % (R, args.eta))
+            print('\n\n-------------------------------------------------------')
+            print('Running Hyperband with R = %d and η = %d\n' %
+                  (R, args.eta))
 
             hb = Hyperband(benchmark, params, max_iter=R, eta=args.eta,
                            seed=args.seed, filename=hb_filename, save=args.save)
             hb.tune()
 
         if args.successive_halving:
-            print('\nRunning Successive Halving with R = %d and η = %d' %
+            print('\n\n-------------------------------------------------------')
+            print('Running Successive Halving with R = %d and η = %d\n' %
                   (R, args.eta))
             sh = Successive_halving(
                 benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save)

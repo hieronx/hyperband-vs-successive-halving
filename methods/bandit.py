@@ -7,6 +7,7 @@ import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 import os.path
 from os import path
+from operator import itemgetter
 
 
 class Bandit:
@@ -21,13 +22,108 @@ class Bandit:
         self.seed = seed
 
         # number of unique executions of Successive Halving (minus one)
-        def logeta(x): return math.log(x)/math.log(eta)
-        self.s_max = int(logeta(max_iter))
+        self.s_max = int(self.logeta(self.max_iter))
 
         # total number of iterations (without reuse) per execution of Succesive Halving (n,r)
-        self.B = (self.s_max+1)*max_iter
+        self.B = (self.s_max+1)*self.max_iter
 
-    # create a hyperparameter generator
+    def logeta(self, x):
+        return math.log(x) / math.log(self.eta)
+
+    def get_n(self, s):
+        return int(math.ceil(int(self.B / self.max_iter / (s+1)) * self.eta**s))
+
+    def get_r(self, s):
+        return self.max_iter * self.eta**(-s)
+
+    def get_sh_loop_info(self, n, r, s, reuse=False):
+        resource = 0
+        configs = 0
+        prev_ri = 0
+
+        for i in range(s+1):
+            n_i = n * self.eta**(-i)
+            r_i = (r * self.eta ** (i)) - prev_ri
+
+            if reuse:
+                prev_ri = r_i
+
+            resource += n_i * r_i
+            configs += n_i
+
+        print('Bracket %s : %s resources' % (s, int(resource)))
+        return resource, configs
+
+    # configs are not unique, these are the configs trained
+    def get_total_info(self, hb=True, reuse=False):
+        total_resource = 0
+        total_configs = 0
+        unique_configs = 0
+        s = self.s_max
+
+        if hb:
+            outer_loop = self.s_max + 1
+        else:
+            outer_loop = self.s_max
+
+        for x in reversed(range(outer_loop)):
+            if hb:
+                s = x
+
+            # initial number of configurations
+            n = self.get_n(s)
+            # initial number of iterations to run configurations for
+            r = self.get_r(s)
+
+            unique_configs += n
+            resource, configs = self.get_sh_loop_info(n, r, s, reuse=reuse)
+
+            total_resource += resource
+            total_configs += configs
+
+        return round(total_resource, 2), int(total_configs), int(unique_configs)
+
+    # a run of successive halving for (n, r)
+    def sh_loop(self, T, n, r, s, pbar=None):
+        best_hyperparameters = {}
+        best_loss = math.inf
+
+        for i in range(s+1):
+            n_i = n * self.eta**(-i)
+            r_i = r * self.eta ** (i)
+            val_losses = []
+
+            for t in T:
+                train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy = self.benchmark.run(
+                    iterations=r_i, hyperparameters=t)
+
+                val_losses.append(val_loss)
+
+                if self.save:
+                    self.save_results(t.get('lr'), s, n_i, r_i, train_loss,
+                                      train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy)
+
+                #results = self.benchmark.run(iterations=r_i, hyperparameters=t)
+
+                #val_losses.append(results)
+
+                #if self.save:
+                    #self.save_results(t.get('lr'), s, n_i, r_i, results['train_loss'],
+                                      #results['train_accuracy'], results['val_loss'], results['val_accuracy'], results['test_loss'], results['test_accuracy'])
+                if pbar:
+                    pbar.update(1)
+
+            best_ix = np.argsort(val_losses)[0:int(n_i / self.eta)]
+
+            if len(best_ix) > 0 and val_losses[best_ix[0]] < best_loss:
+                best_loss = val_losses[best_ix[0]]
+                best_hyperparameters = T[best_ix[0]]
+
+            T = [T[i] for i in best_ix]
+
+        return best_hyperparameters, best_loss
+
+    # create a hyperparameter generator with a seed
     def create_hyperparameterspace(self, seed, params):
         cs = CS.ConfigurationSpace(seed=seed)
 
@@ -43,6 +139,7 @@ class Bandit:
 
         return cs
 
+    # save meta data
     def save_meta(self):
         bench_meta = self.benchmark.get_meta()
         name = "./results/" + self.filename + ".csv.meta"
@@ -61,6 +158,7 @@ class Bandit:
             with open(name, 'w') as f:
                 f.write(line)
 
+    # save results
     def save_results(self, lr, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy):
         name = "./results/" + self.filename + ".csv"
 
@@ -75,5 +173,3 @@ class Bandit:
 
         with open(name, 'a') as f:
             f.write(line)
-
-        return None
