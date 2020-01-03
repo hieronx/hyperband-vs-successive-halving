@@ -40,7 +40,7 @@ if __name__ == '__main__':
                   (R, args.eta))
 
             hb = Hyperband(benchmark, params, max_iter=R, eta=args.eta,
-                           seed=args.seed, filename=hb_filename, save=args.save)
+                           seed=args.seed, filename=hb_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
             hb.tune()
 
         if args.successive_halving:
@@ -48,5 +48,5 @@ if __name__ == '__main__':
             print('Running Successive Halving with R = %d and η = %d\n' %
                   (R, args.eta))
             sh = Successive_halving(
-                benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save)
+                benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
             sh.tune()

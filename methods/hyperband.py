@@ -9,9 +9,9 @@ from tqdm import tqdm
 
 
 class Hyperband(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta, seed, filename, save):
+    def __init__(self, benchmark, params, max_iter, eta, seed, filename, save, visualize_lr_schedule):
         super(Hyperband, self).__init__(
-            benchmark, params, max_iter, eta, seed, filename, save)
+            benchmark, params, max_iter, eta, seed, filename, save, visualize_lr_schedule)
 
     def tune(self):
         if self.save:

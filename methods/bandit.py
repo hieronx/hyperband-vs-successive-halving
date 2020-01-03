@@ -7,15 +7,16 @@ import ConfigSpace as CS
 import ConfigSpace.hyperparameters as CSH
 import os.path
 from os import path
-
+from matplotlib import pyplot as plt
 
 class Bandit:
 
-    def __init__(self, benchmark, params, max_iter=81, eta=3, seed=2020, filename='', save=True):
+    def __init__(self, benchmark, params, max_iter=81, eta=3, seed=2020, filename='', save=True, visualize_lr_schedule=False):
         self.benchmark = benchmark
         self.params = params
         self.filename = filename
         self.save = save
+        self.visualize_lr_schedule = visualize_lr_schedule
         self.max_iter = max_iter  # maximum iterations/epochs per configuration
         self.eta = eta  # defines downsampling rate (default=3)
         self.seed = seed
@@ -163,3 +164,12 @@ class Bandit:
 
         with open(name, 'a') as f:
             f.write(line)
+        
+        self.save_lr_schedule_plot()
+
+    def save_lr_schedule_plot(self):
+        if self.visualize_lr_schedule:
+            schedule = self.benchmark.last_run_lr_schedule
+
+            plt.plot(schedule)
+            plt.savefig('./results/lr-schedule.png')

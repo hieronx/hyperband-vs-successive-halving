@@ -23,14 +23,15 @@ from .models import *
 
 class Benchmark:
 
-    def __init__(self, model, dataset, batchsize, mini_iterations, lr_schedule, seed, dry_run, val_size=0.1):
+    def __init__(self, model, dataset, bs, mini_iterations, lr_schedule, seed, dry_run, val_size=0.1):
         self.model = model
-        self.dataset = dataset
-        self.bs = batchsize
+        self.bs = bs
         self.mini_iterations = mini_iterations
         self.lr_schedule = lr_schedule
         self.seed = seed
         self.dry_run = dry_run
+
+        self.dataset = dataset
         self.val_size = val_size
 
         self.tensor_shape = None
@@ -41,35 +42,10 @@ class Benchmark:
 
         self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
+        # data_loader = data_utils.DataUtils(dataset, bs, val_size, seed)
         self.trainloader, self.valloader, self.testloader = self.prepare_data()
 
-    # save meta-info as dict
-    def get_meta(self):
-        meta = {'model': self.model, 'dataset': self.dataset, 'bs': self.bs, 'mini_iterations': self.mini_iterations,
-                'size_train': self.size_train, 'size_val': self.size_val, 'size_test': self.size_test, 'tensor_shape': self.tensor_shape}
-        return meta
-
-    # this gets the lr from the optimizer, for when we wants to use lr decay e.g lr schedules
-    # as indicated in the paper for diverse convergence rates
-    def get_lr(self, optimizer):
-        for param_group in optimizer.param_groups:
-            return param_group['lr']
-    
-    def get_lr_schedule(self, base_lr, optimizer, schedule):
-        if schedule == 'Linear':
-            # This is actually a fixed learning rate, so it isn't changing according to a schedule,
-            # but to keep the code simple, we implement it as a LambdaLR schedule with lr_lambda=1.
-            lr_lambda = lambda epoch: 1.0 ** epoch
-            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
-        elif schedule == 'LambdaLR':
-            lr_lambda = lambda epoch: 0.95 ** epoch
-            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
-        elif schedule == 'StepLR':
-            return optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
-        elif schedule == 'ExponentialLR':
-            return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.1)
-        elif schedule == 'CyclicLR':
-            return optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=base_lr * 5)
+        self.last_run_lr_schedule = []
 
     # does transforms on data to be used with model
     def transform_data(self):
@@ -136,6 +112,34 @@ class Benchmark:
 
         print('===> Done preparing data')
         return trainloader, valloader, testloader
+
+    # save meta-info as dict
+    def get_meta(self):
+        meta = {'model': self.model, 'dataset': self.dataset, 'bs': self.bs, 'mini_iterations': self.mini_iterations,
+                'size_train': self.size_train, 'size_val': self.size_val, 'size_test': self.size_test, 'tensor_shape': self.tensor_shape}
+        return meta
+
+    # this gets the lr from the optimizer, for when we wants to use lr decay e.g lr schedules
+    # as indicated in the paper for diverse convergence rates
+    def get_lr(self, optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
+    
+    def get_lr_schedule(self, base_lr, optimizer, schedule):
+        if schedule == 'Linear':
+            # This is actually a fixed learning rate, so it isn't changing according to a schedule,
+            # but to keep the code simple, we implement it as a LambdaLR schedule with lr_lambda=1.
+            lr_lambda = lambda epoch: 1.0 ** epoch
+            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        elif schedule == 'LambdaLR':
+            lr_lambda = lambda epoch: 0.95 ** epoch
+            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        elif schedule == 'StepLR':
+            return optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+        elif schedule == 'ExponentialLR':
+            return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.1)
+        elif schedule == 'CyclicLR':
+            return optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=base_lr * 5)
 
     # validate runs the val and test data and returns the loss and acc
     def validate(self, net, loader, test, hyperparameters):
@@ -241,6 +245,8 @@ class Benchmark:
             optimizer.step()
             scheduler.step()
 
+            self.last_run_lr_schedule.append(self.get_lr(optimizer))
+
             train_loss += loss.item()
             _, predicted = outputs.max(1)
             total += targets.size(0)
@@ -259,6 +265,8 @@ class Benchmark:
         if self.dry_run:
             return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         else:
+            self.last_run_lr_schedule = []
+
             # train, validate and test
             train_loss, train_accuracy, net = self.train(
                 self.trainloader, iterations, hyperparameters)

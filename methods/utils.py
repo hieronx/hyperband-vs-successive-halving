@@ -28,6 +28,9 @@ def parse(args):
 
     parser.add_argument('--lr_schedule', type=str, choices=['Linear', 'LambdaLR', 'StepLR', 'ExponentialLR', 'CyclicLR'], default='Linear',
                         help='Set the learning rate schedule')
+    parser.add_argument('--visualize_lr_schedule', action='store_true',
+                        help='If added, plots the learning rate schedule to an image file')
+
     parser.add_argument('--mult_r', type=int, default=1,
                         help='Set the maximum budget, running the experiments every step_r from 1 till mult_r, with each time (iterations x step_r) more resources (default=1)')
     parser.add_argument('--step_r', type=int, default=1,
