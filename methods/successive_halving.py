@@ -13,6 +13,7 @@ class Successive_halving(Bandit):
         super(Successive_halving, self).__init__(
             benchmark, params, max_iter, eta, seed, filename, save)
 
+
     def tune(self):
         if self.save:
             self.save_meta()
