@@ -26,6 +26,8 @@ def parse(args):
     parser.add_argument('--mini_iterations', type=int,
                         default=100, help='Set the number of mini-iterations (default=100)')
 
+    parser.add_argument('--lr_schedule', type=str, choices=['Linear', 'LambdaLR', 'StepLR', 'ExponentialLR', 'CyclicLR'], default='Linear',
+                        help='Set the learning rate schedule')
     parser.add_argument('--mult_r', type=int, default=1,
                         help='Set the maximum budget, running the experiments every step_r from 1 till mult_r, with each time (iterations x step_r) more resources (default=1)')
     parser.add_argument('--step_r', type=int, default=1,

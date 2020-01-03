@@ -23,11 +23,12 @@ from .models import *
 
 class Benchmark:
 
-    def __init__(self, model, dataset, batchsize, mini_iterations, seed, dry_run, val_size=0.1):
+    def __init__(self, model, dataset, batchsize, mini_iterations, lr_schedule, seed, dry_run, val_size=0.1):
         self.model = model
         self.dataset = dataset
         self.bs = batchsize
         self.mini_iterations = mini_iterations
+        self.lr_schedule = lr_schedule
         self.seed = seed
         self.dry_run = dry_run
         self.val_size = val_size
@@ -53,6 +54,22 @@ class Benchmark:
     def get_lr(self, optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']
+    
+    def get_lr_schedule(self, base_lr, optimizer, schedule):
+        if schedule == 'Linear':
+            # This is actually a fixed learning rate, so it isn't changing according to a schedule,
+            # but to keep the code simple, we implement it as a LambdaLR schedule with lr_lambda=1.
+            lr_lambda = lambda epoch: 1.0 ** epoch
+            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        elif schedule == 'LambdaLR':
+            lr_lambda = lambda epoch: 0.95 ** epoch
+            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+        elif schedule == 'StepLR':
+            return optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+        elif schedule == 'ExponentialLR':
+            return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.1)
+        elif schedule == 'CyclicLR':
+            return optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=base_lr * 5)
 
     # does transforms on data to be used with model
     def transform_data(self):
@@ -186,6 +203,8 @@ class Benchmark:
         optimizer = optim.SGD(net.parameters(), **
                               hyperparameters.get_dictionary())
 
+        scheduler = self.get_lr_schedule(hyperparameters.get('lr'), optimizer, self.lr_schedule)
+
         loss = math.inf
 
         # start train mode
@@ -220,6 +239,7 @@ class Benchmark:
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
+            scheduler.step()
 
             train_loss += loss.item()
             _, predicted = outputs.max(1)
@@ -227,7 +247,7 @@ class Benchmark:
             correct += predicted.eq(targets).sum().item()
 
             t.set_description('Training.. | lr=%0.4f | loss=%0.3f | acc=%0.3f%% | %g/%g |' %
-                              (hyperparameters.get('lr'), train_loss/(i+1), (100.*correct/total), correct, total))
+                              (self.get_lr(optimizer), train_loss/(i+1), (100.*correct/total), correct, total))
 
             running_loss = train_loss / (i + 1)
 

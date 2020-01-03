@@ -6,7 +6,7 @@ import sys
 
 from methods.hyperband import Hyperband
 from methods.successive_halving import Successive_halving
-from methods.ultils import parse
+from methods.utils import parse
 
 from wrapper.benchmark import Benchmark
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     params = [['lr', 0.0025, 0.25, False], ['momentum', 0.9, 0.9, False]]
 
     benchmark = Benchmark(args.model_name, args.dataset,
-                          args.batch_size, args.mini_iterations, args.seed, args.dry_run)
+                          args.batch_size, args.mini_iterations, args.lr_schedule, args.seed, args.dry_run)
 
     postfix = str(time.strftime("%Y%m%d-%H%M%S"))
 
