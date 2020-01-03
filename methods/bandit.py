@@ -135,7 +135,8 @@ class Bandit:
         bench_meta = self.benchmark.get_meta()
         name = "./results/" + self.filename + ".csv.meta"
         line = 'seed : ' + str(self.seed) + '\n' + 'methods : ' + self.__class__.__name__ + '\n' + 'eta : ' + str(self.eta) + '\n' + 'dataset : ' + \
-            bench_meta['dataset'] + '\n' + 'data_shape (channel, height, width) : ' + ' '.join(map(str, list(bench_meta['tensor_shape']))) + '\n' + 'training_size : ' + \
+            bench_meta['dataset'] + '\n' + 'lr_schedule : ' + bench_meta['lr_schedule'] + \
+            '\n' + 'data_shape (channel, height, width) : ' + ' '.join(map(str, list(bench_meta['tensor_shape']))) + '\n' + 'training_size : ' + \
             str(bench_meta['size_train']) + '\n' + \
             'validation_size : ' + \
             str(bench_meta['size_val']) + '\n' + 'test_size : ' + \

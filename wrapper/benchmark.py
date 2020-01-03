@@ -115,7 +115,7 @@ class Benchmark:
 
     # save meta-info as dict
     def get_meta(self):
-        meta = {'model': self.model, 'dataset': self.dataset, 'bs': self.bs, 'mini_iterations': self.mini_iterations,
+        meta = {'model': self.model, 'dataset': self.dataset, 'bs': self.bs, 'mini_iterations': self.mini_iterations, 'lr_schedule': self.lr_schedule,
                 'size_train': self.size_train, 'size_val': self.size_val, 'size_test': self.size_test, 'tensor_shape': self.tensor_shape}
         return meta
 
