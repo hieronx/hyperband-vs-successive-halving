@@ -19,7 +19,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # params , name; lowerbound; upperbound; logsampling, if lower==upper then it is a static choice
-    params = [['lr', 0.0025, 0.25, False], ['momentum', 0.9, 0.9, False]]
+    params = [['lr', 0.001, 0.25, False], ['momentum', 0.9, 0.9, False]]
 
     benchmark = Benchmark(args.model_name, args.dataset,
                           args.batch_size, args.mini_iterations, args.lr_schedule, args.seed, args.dry_run)
