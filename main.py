@@ -10,14 +10,7 @@ from methods.utils import parse
 
 from wrapper.benchmark import Benchmark
 
-if __name__ == '__main__':
-
-    args = parse(sys.argv[1:])
-
-    # Set the seed
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-
+def run(args):
     # params , name; lowerbound; upperbound; logsampling, if lower==upper then it is a static choice
     params = [['lr', 0.001, 0.25, False], ['momentum', 0.9, 0.9, False]]
 
@@ -50,3 +43,33 @@ if __name__ == '__main__':
             sh = Successive_halving(
                 benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
             sh.tune()
+
+
+def start_script(args):
+    if args.script == 'baseline':
+        schedules = ['Linear', 'LambdaLR', 'StepLR', 'ExponentialLR', 'CyclicLR']
+        for schedule in schedules:
+            print('Using schedule %s' % schedule)
+
+            # Call run for R = 20,40,60,80,100, for both Hyperband and Successive Halving
+            args.step_r = 2
+            args.mult_r = 10
+            args.hyperband = True
+            run(args)
+
+            args.successive_halving = True
+            args.hyperband = False
+            run(args)
+
+
+if __name__ == '__main__':
+    args = parse(sys.argv[1:])
+        
+    # Set the seed
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+
+    if args.script:
+        start_script(args)
+    else:
+        run(args)

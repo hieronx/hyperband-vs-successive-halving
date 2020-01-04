@@ -7,6 +7,8 @@ def parse(args):
     parser = argparse.ArgumentParser(
         description="Hyperband vs Successive Halving", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    parser.add_argument('script', nargs='?', default='')
+
     parser.add_argument('--hyperband', action='store_true',
                         help='If added, runs Hyperband')
     parser.add_argument('--successive_halving', action='store_true',
@@ -51,7 +53,7 @@ def parse(args):
         print('Ensure that mult_r MOD step_r == 0')
         exit(1)
 
-    if not arg.hyperband and not arg.successive_halving:
+    if not arg.hyperband and not arg.successive_halving and not arg.script:
         print('Ensure that you run at least Hyperband or Successive Halving or both')
         exit(1)
 
