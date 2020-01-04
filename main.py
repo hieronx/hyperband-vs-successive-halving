@@ -6,7 +6,7 @@ import sys
 
 from methods.hyperband import Hyperband
 from methods.successive_halving import Successive_halving
-from methods.ultils import parse
+from methods.utils import parse
 
 from wrapper.benchmark import Benchmark
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     params = [['lr', 0.001, 0.25, False], ['momentum', 0.9, 0.9, False]]
 
     benchmark = Benchmark(args.model_name, args.dataset,
-                          args.batch_size, args.mini_iterations, args.seed, args.dry_run)
+                          args.batch_size, args.mini_iterations, args.lr_schedule, args.seed, args.dry_run)
 
     postfix = str(time.strftime("%Y%m%d-%H%M%S"))
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
                   (R, args.eta))
 
             hb = Hyperband(benchmark, params, max_iter=R, eta=args.eta,
-                           seed=args.seed, filename=hb_filename, save=args.save)
+                           seed=args.seed, filename=hb_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
             hb.tune()
 
         if args.successive_halving:
@@ -48,5 +48,5 @@ if __name__ == '__main__':
             print('Running Successive Halving with R = %d and η = %d\n' %
                   (R, args.eta))
             sh = Successive_halving(
-                benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save)
+                benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
             sh.tune()

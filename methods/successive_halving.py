@@ -9,9 +9,9 @@ import math
 
 
 class Successive_halving(Bandit):
-    def __init__(self, benchmark, params, max_iter, eta, seed, filename, save):
+    def __init__(self, benchmark, params, max_iter, eta, seed, filename, save, visualize_lr_schedule):
         super(Successive_halving, self).__init__(
-            benchmark, params, max_iter, eta, seed, filename, save)
+            benchmark, params, max_iter, eta, seed, filename, save, visualize_lr_schedule)
 
 
     def tune(self):
