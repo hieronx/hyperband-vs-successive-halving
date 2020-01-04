@@ -132,14 +132,14 @@ class Benchmark:
             lr_lambda = lambda epoch: 1.0 ** epoch
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'LambdaLR':
-            lr_lambda = lambda epoch: 0.95 ** epoch
+            lr_lambda = lambda epoch: 1.01 ** epoch * 0.1
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'StepLR':
-            return optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+            return optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.5)
         elif schedule == 'ExponentialLR':
-            return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.1)
+            return optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
         elif schedule == 'CyclicLR':
-            return optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr, max_lr=base_lr * 5)
+            return optim.lr_scheduler.CyclicLR(optimizer, base_lr=base_lr * 0.5, max_lr=base_lr * 1.5, step_size_up=50)
 
     # validate runs the val and test data and returns the loss and acc
     def validate(self, net, loader, test, hyperparameters):
@@ -187,7 +187,7 @@ class Benchmark:
     # train runs the train iterator and returns the running loss, acc and trained modelcd
     def train(self, trainloader, iterations, hyperparameters):
         # set seed again, so that each model will have the same init weights
-        torch.manual_seed(self.seed)
+        # torch.manual_seed(self.seed)
 
         if not hasattr(sys.modules[__name__], self.model):
             print('====> Model doesn\'t exist!')
