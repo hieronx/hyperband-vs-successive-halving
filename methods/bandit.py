@@ -153,7 +153,7 @@ class Bandit:
         name = "./results/" + self.filename + ".csv"
 
         if not path.exists(name):
-            header = 'max_iter, learning_rate, bracket, n_i, r_i, train_loss, train_accuracy, val_loss, val_accuracy, test_loss, test_accuracy\n'
+            header = 'max_iter,learning_rate,bracket,n_i,r_i,train_loss,train_accuracy,val_loss,val_accuracy,test_loss,test_accuracy\n'
             with open(name, 'w') as f:
                 f.write(header)
 

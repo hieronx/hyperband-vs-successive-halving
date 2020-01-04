@@ -166,7 +166,7 @@ class Benchmark:
     # train runs the train iterator and returns the running loss, acc and trained modelcd
     def train(self, trainloader, iterations, hyperparameters):
         # set seed again, so that each model will have the same init weights
-        torch.manual_seed(self.seed)
+        # torch.manual_seed(self.seed)
 
         if not hasattr(sys.modules[__name__], self.model):
             print('====> Model doesn\'t exist!')
