@@ -124,15 +124,15 @@ class Benchmark:
     def get_lr(self, optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']
-    
+
     def get_lr_schedule(self, base_lr, optimizer, schedule):
         if schedule == 'Linear':
             # This is actually a fixed learning rate, so it isn't changing according to a schedule,
             # but to keep the code simple, we implement it as a LambdaLR schedule with lr_lambda=1.
-            lr_lambda = lambda epoch: 1.0 ** epoch
+            def lr_lambda(epoch): return 1.0 ** epoch
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'LambdaLR':
-            lr_lambda = lambda epoch: 1.01 ** epoch * 0.1
+            def lr_lambda(epoch): return 1.01 ** epoch * 0.1
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'StepLR':
             return optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.5)
@@ -207,7 +207,8 @@ class Benchmark:
         optimizer = optim.SGD(net.parameters(), **
                               hyperparameters.get_dictionary())
 
-        scheduler = self.get_lr_schedule(hyperparameters.get('lr'), optimizer, self.lr_schedule)
+        scheduler = self.get_lr_schedule(
+            hyperparameters.get('lr'), optimizer, self.lr_schedule)
 
         loss = math.inf
 
