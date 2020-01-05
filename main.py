@@ -47,19 +47,27 @@ def run(args):
 
 def start_script(args):
     if args.script == 'baseline':
-        schedules = ['Linear', 'LambdaLR', 'StepLR', 'ExponentialLR', 'CyclicLR']
-        for schedule in schedules:
-            print('Using schedule %s' % schedule)
+        seeds = [2020, 4040, 6060]
 
-            # Call run for R = 20,40,60,80,100, for both Hyperband and Successive Halving
-            args.step_r = 2
-            args.mult_r = 10
-            args.hyperband = True
-            run(args)
+        for seed in seeds:
+            print('Using seed %d' % seed)
+            args.seed = seed
 
-            args.successive_halving = True
-            args.hyperband = False
-            run(args)
+            schedules = ['Linear', 'LambdaLR', 'StepLR', 'ExponentialLR', 'CyclicLR']
+            for schedule in schedules:
+                print('Using schedule %s' % schedule)
+                args.lr_schedule = schedule
+
+                # Call run for R = 20,40,60,80,100 for both Hyperband and Successive Halving
+                args.step_r = 2
+                args.mult_r = 10
+                
+                args.hyperband = True
+                run(args)
+
+                args.successive_halving = True
+                args.hyperband = False
+                run(args)
 
 
 if __name__ == '__main__':
