@@ -10,6 +10,7 @@ from methods.utils import parse
 
 from wrapper.benchmark import Benchmark
 
+
 def run(args):
     # params , name; lowerbound; upperbound; logsampling, if lower==upper then it is a static choice
     params = [['lr', 0.001, 0.25, False], ['momentum', 0.9, 0.9, False]]
@@ -53,7 +54,13 @@ def start_script(args):
             print('Using seed %d' % seed)
             args.seed = seed
 
-            schedules = ['Linear', 'LambdaLR', 'StepLR', 'ExponentialLR', 'CyclicLR']
+            # Set the seed
+            np.random.seed(args.seed)
+            torch.manual_seed(args.seed)
+
+            schedules = ['Linear', 'LambdaLR',
+                         'StepLR', 'ExponentialLR', 'CyclicLR']
+
             for schedule in schedules:
                 print('Using schedule %s' % schedule)
                 args.lr_schedule = schedule
@@ -61,7 +68,7 @@ def start_script(args):
                 # Call run for R = 20,40,60,80,100 for both Hyperband and Successive Halving
                 args.step_r = 2
                 args.mult_r = 10
-                
+
                 args.hyperband = True
                 run(args)
 
@@ -72,8 +79,8 @@ def start_script(args):
 
 if __name__ == '__main__':
     args = parse(sys.argv[1:])
-        
-    # Set the seed
+
+    # Set the seed for an individual run
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
