@@ -104,11 +104,11 @@ class Benchmark:
         # trainloader uses an iterative sampler to sample the data sequentially to get to the
         # number of iterations needed
         trainloader = torch.utils.data.DataLoader(
-            trainset, sampler=torch.utils.data.sampler.SequentialSampler(trainset), shuffle=False, num_workers=1, batch_size=self.bs)
+            trainset, sampler=torch.utils.data.sampler.SequentialSampler(trainset), shuffle=False, num_workers=4, batch_size=self.bs)
         valloader = torch.utils.data.DataLoader(
-            valset, num_workers=1, batch_size=self.bs)
+            valset, num_workers=4, batch_size=self.bs)
         testloader = torch.utils.data.DataLoader(
-            testset, num_workers=1, batch_size=self.bs)
+            testset, num_workers=4, batch_size=self.bs)
 
         print('===> Done preparing data')
         return trainloader, valloader, testloader
