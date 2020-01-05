@@ -104,11 +104,11 @@ class Benchmark:
         # trainloader uses an iterative sampler to sample the data sequentially to get to the
         # number of iterations needed
         trainloader = torch.utils.data.DataLoader(
-            trainset, sampler=torch.utils.data.sampler.SequentialSampler(trainset), shuffle=False, num_workers=1, batch_size=self.bs)
+            trainset, sampler=torch.utils.data.sampler.SequentialSampler(trainset), shuffle=False, num_workers=4, batch_size=self.bs)
         valloader = torch.utils.data.DataLoader(
-            valset, num_workers=1, batch_size=self.bs)
+            valset, num_workers=4, batch_size=self.bs)
         testloader = torch.utils.data.DataLoader(
-            testset, num_workers=1, batch_size=self.bs)
+            testset, num_workers=4, batch_size=self.bs)
 
         print('===> Done preparing data')
         return trainloader, valloader, testloader
@@ -124,15 +124,15 @@ class Benchmark:
     def get_lr(self, optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']
-    
+
     def get_lr_schedule(self, base_lr, optimizer, schedule):
         if schedule == 'Linear':
             # This is actually a fixed learning rate, so it isn't changing according to a schedule,
             # but to keep the code simple, we implement it as a LambdaLR schedule with lr_lambda=1.
-            lr_lambda = lambda epoch: 1.0 ** epoch
+            def lr_lambda(epoch): return 1.0 ** epoch
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'LambdaLR':
-            lr_lambda = lambda epoch: 1.01 ** epoch * 0.1
+            def lr_lambda(epoch): return 1.01 ** epoch * 0.1
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'StepLR':
             return optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.5)
@@ -207,7 +207,8 @@ class Benchmark:
         optimizer = optim.SGD(net.parameters(), **
                               hyperparameters.get_dictionary())
 
-        scheduler = self.get_lr_schedule(hyperparameters.get('lr'), optimizer, self.lr_schedule)
+        scheduler = self.get_lr_schedule(
+            hyperparameters.get('lr'), optimizer, self.lr_schedule)
 
         loss = math.inf
 
