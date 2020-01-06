@@ -1,7 +1,8 @@
-seed : 1234
-methods : Successive_halving
+seed : 2020
+methods : Hyperband
 eta : 3
 dataset : FashionMNIST
+lr_schedule : LambdaLR
 data_shape (channel, height, width) : 1 28 28
 training_size : 54000
 validation_size : 6000

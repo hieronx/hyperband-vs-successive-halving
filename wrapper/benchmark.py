@@ -40,7 +40,7 @@ class Benchmark:
         self.size_val = 0
         self.size_test = 0
 
-        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # data_loader = data_utils.DataUtils(dataset, bs, val_size, seed)
         self.trainloader, self.valloader, self.testloader = self.prepare_data()
@@ -143,12 +143,13 @@ class Benchmark:
 
     # validate runs the val and test data and returns the loss and acc
     def validate(self, net, loader, test, hyperparameters):
-        net = net.to(self.device)
-
-        if self.device == 'cuda:0':
-            net = torch.nn.DataParallel(net)
+        #no data parallel but benchmark mode
+        if self.device.type == 'cuda:0':
+            #if torch.cuda.device_count() > 1:
+            #    net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
-
+        
+        net = net.to(self.device)
         criterion = nn.CrossEntropyLoss()
         loss = math.inf
 
@@ -195,13 +196,13 @@ class Benchmark:
 
         net = getattr(sys.modules[__name__], self.model)(
             tensor_shape=self.tensor_shape)
-
-        net = net.to(self.device)
-
-        if self.device == 'cuda:0':
-            net = torch.nn.DataParallel(net)
+        #no data parallel but benchmarkmode
+        if self.device.type == 'cuda:0':
+           # if torch.cuda.device_count() > 1:
+            #    net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
-
+        
+        net = net.to(self.device)
         criterion = nn.CrossEntropyLoss()
 
         optimizer = optim.SGD(net.parameters(), **

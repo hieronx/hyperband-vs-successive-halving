@@ -49,7 +49,7 @@ def run(args):
 def start_script(args):
     if args.script == 'baseline':
         seeds = [2020, 4040, 6060]
-
+        #seeds = [2020]
         for seed in seeds:
             print('Using seed %d' % seed)
             args.seed = seed
@@ -60,6 +60,7 @@ def start_script(args):
 
             schedules = ['Linear', 'LambdaLR',
                          'StepLR', 'ExponentialLR', 'CyclicLR']
+            #schedules = ['CyclicLR']
 
             for schedule in schedules:
                 print('Using schedule %s' % schedule)
@@ -69,6 +70,7 @@ def start_script(args):
                 args.step_r = 2
                 args.mult_r = 10
 
+                args.successive_halving = False
                 args.hyperband = True
                 run(args)
 
