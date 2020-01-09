@@ -245,9 +245,10 @@ class Benchmark:
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
-            self.last_run_lr_schedule.append(self.get_lr(optimizer))
+            if i % iterations == 0:
+                scheduler.step()
+                self.last_run_lr_schedule.append(self.get_lr(optimizer))
 
             train_loss += loss.item()
             _, predicted = outputs.max(1)
