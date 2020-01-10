@@ -283,7 +283,7 @@ class Benchmark:
             loss.backward()
             optimizer.step()
 
-            if i % iterations == 0:
+            if i % int(iterations) == 0:
                 scheduler.step()
                 self.last_run_lr_schedule.append(self.get_lr(optimizer))
 
