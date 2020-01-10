@@ -40,14 +40,51 @@ class Benchmark:
         self.size_val = 0
         self.size_test = 0
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda:0" if torch.cuda.is_available() else "cpu")
 
         # data_loader = data_utils.DataUtils(dataset, bs, val_size, seed)
         self.trainloader, self.valloader, self.testloader = self.prepare_data()
 
         self.last_run_lr_schedule = []
 
+    def test_schedule(self, max_iter, lr):
+        schedule = []
+
+        if not hasattr(sys.modules[__name__], self.model):
+            print('====> Model doesn\'t exist!')
+            exit(1)
+
+        net = getattr(sys.modules[__name__], self.model)(
+            tensor_shape=self.tensor_shape)
+        # no data parallel but benchmarkmode
+        if self.device.type == 'cuda:0':
+           # if torch.cuda.device_count() > 1:
+            #    net = torch.nn.DataParallel(net)
+            cudnn.benchmark = True
+
+        net = net.to(self.device)
+
+        optimizer = optim.SGD(net.parameters(), lr=lr)
+
+        scheduler = self.get_lr_schedule(lr, optimizer, self.lr_schedule)
+
+        # resources iterations * mini-iterations rounded down
+        total_resource = int(max_iter * self.mini_iterations)
+        ini = True
+        for i in range(total_resource):
+            if ini:
+                optimizer.step()
+                ini = False
+            # check if it reached the end of the data, in that case re-init the iterator from start
+            if i % int(max_iter) == 0:
+                scheduler.step()
+                schedule.append(self.get_lr(optimizer))
+
+        return schedule
+
     # does transforms on data to be used with model
+
     def transform_data(self):
         # normalize to mean depending on dataset
         if self.dataset == 'CIFAR10':
@@ -129,10 +166,10 @@ class Benchmark:
         if schedule == 'Linear':
             # This is actually a fixed learning rate, so it isn't changing according to a schedule,
             # but to keep the code simple, we implement it as a LambdaLR schedule with lr_lambda=1.
-            def lr_lambda(epoch): return 1.0 ** epoch
-            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+            def static_lr(epoch): return 1.0 ** epoch
+            return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=static_lr)
         elif schedule == 'LambdaLR':
-            def lr_lambda(epoch): return 1.01 ** epoch * 0.1
+            def lr_lambda(epoch): return 1.01 ** epoch
             return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
         elif schedule == 'StepLR':
             return optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.5)
@@ -143,12 +180,12 @@ class Benchmark:
 
     # validate runs the val and test data and returns the loss and acc
     def validate(self, net, loader, test, hyperparameters):
-        #no data parallel but benchmark mode
+        # no data parallel but benchmark mode
         if self.device.type == 'cuda:0':
-            #if torch.cuda.device_count() > 1:
+            # if torch.cuda.device_count() > 1:
             #    net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
-        
+
         net = net.to(self.device)
         criterion = nn.CrossEntropyLoss()
         loss = math.inf
@@ -196,12 +233,12 @@ class Benchmark:
 
         net = getattr(sys.modules[__name__], self.model)(
             tensor_shape=self.tensor_shape)
-        #no data parallel but benchmarkmode
+        # no data parallel but benchmarkmode
         if self.device.type == 'cuda:0':
            # if torch.cuda.device_count() > 1:
             #    net = torch.nn.DataParallel(net)
             cudnn.benchmark = True
-        
+
         net = net.to(self.device)
         criterion = nn.CrossEntropyLoss()
 
@@ -245,9 +282,10 @@ class Benchmark:
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
-            self.last_run_lr_schedule.append(self.get_lr(optimizer))
+            if i % int(iterations) == 0:
+                scheduler.step()
+                self.last_run_lr_schedule.append(self.get_lr(optimizer))
 
             train_loss += loss.item()
             _, predicted = outputs.max(1)
