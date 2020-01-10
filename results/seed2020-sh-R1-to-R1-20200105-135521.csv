@@ -1,0 +1,2 @@
+max_iter,learning_rate,bracket,n_i,r_i,train_loss,train_accuracy,val_loss,val_accuracy,test_loss,test_accuracy
+1,0.2465829303865381,0,1,1,2.023236610889435,26.265625,1.6275086123892601,42.35,1.6316532329389244,42.55
