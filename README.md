@@ -59,3 +59,8 @@ hb = SuccessiveHalving(benchmark, params, iterations, eta)
 
 hb.tune()
 ```
+
+## Sources
+
+- Hyperband and Successive Halving implementations are based on https://homes.cs.washington.edu/~jamieson/hyperband.html.
+- The SmallCNN model is based on code from https://nextjournal.com/gkoehler/pytorch-mnist.
