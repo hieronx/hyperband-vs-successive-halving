@@ -1,6 +1,6 @@
 # Hyperband vs Successive Halving
 
-Project work codebase for comparing Hyperband and Successive Halving as hyperparameter selection methods for deep neural networks.
+Project work codebase for comparing Hyperband and Successive Halving as hyperparameter selection methods for deep neural networks given varying learning rate schedules.
 
 ## Setup
 
@@ -13,13 +13,19 @@ conda activate hb-vs-sh
 
 ## Usage
 
-To run the baseline model use the command:
+To run the baseline model benchmark, use the command:
 
 ```
 python main.py baseline
 ```
 
-To train other models, use this to print all command-line options:
+Add the save command to save the results
+
+```
+python main.py baseline --save
+```
+
+Use this to print all command-line options:
 
 ```
 python main.py -h
@@ -28,36 +34,42 @@ python main.py -h
 ### Modifying hyperparameters
 
 In your main.py file, please define:
+
 ```
-params = [['lr', 0.001, 0.3, True]]
+params = [['lr', 0.001, 0.25, False], ['momentum', 0.9, 0.9, False]]
 ```
 
-where params is a list of hyperparameters following the structure `hyperparameter name, lower bound, upper bound, log-random sampling`.
+Where params is a list of hyperparameters following the structure `hyperparameter name, lower bound, upper bound, log-random sampling`.
+If the upper- and lower bound is the same, then it will use the value of the lower bound.
 
 ### Benchmark
 
 Benchmark creates an class that will run each individual config when called, where
-- The first arg is the model you want to use, color indicates the input channel of the model, True for color and false for gray;
-- The second arg is the datasetname in torchvision;
-- Third is batchsize, fourth is mini iterations;
+
+- The first arg is the model you want to use
+- The second arg is the datasetname in torchvision
+- Third is batchsize
+- fourth is mini-terations
+- Fifth is the learning schedule
+- Sixth is the seed, all functions except for the weight initalization of the models uses this seed
+- Seventh is the dry_run option, if in the command --dry_run is added, it will then run the benchmark without training the models
 
 ```
-benchmark = Benchmark(SimpleCNN, 'FashionMNIST', 128, 100)
+Benchmark(args.model_name, args.dataset, args.batch_size, args.mini_iterations, args.lr_schedule, args.seed, args.dry_run)
 ```
 
 One iteration has `batchsize * mini-iteration` examples.
 
 ### Hyperband or Successive Halving example
 
-
 ```
-iterations = 81
-eta = 3
-
-hb = Hyperband(benchmark, params, iterations, eta)
-hb = SuccessiveHalving(benchmark, params, iterations, eta)
-
+hb = Hyperband(benchmark, params, max_iter=R, eta=args.eta,
+                           seed=args.seed, filename=hb_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
 hb.tune()
+
+sh = Successive_halving(
+                benchmark, params, max_iter=R, eta=args.eta, seed=args.seed, filename=sh_filename, save=args.save, visualize_lr_schedule=args.visualize_lr_schedule)
+sh.tune()
 ```
 
 ## Sources
